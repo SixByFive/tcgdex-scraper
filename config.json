@@ -9,6 +9,9 @@
     "pt": "https://www.pokemon.com/br"
   },
   "concurrency": 3,
+  "userAgent": "tcgdex-scraper/0.1 (+contact@tcgdex.dev)",
   "cacheDir": "./cache",
-  "outDir": "./out"
+  "outDir": "./out",
+  "reviewDir": "./review",
+  "cardmarketDir": "./cardmarket-ids"
 }

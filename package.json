@@ -3,6 +3,13 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "scripts": {
+    "scrape:set": "bun run src/cli.ts scrape set",
+    "prices:tcgplayer": "bun run src/cli.ts prices tcgplayer",
+    "prices:cardmarket": "bun run src/cli.ts prices cardmarket",
+    "emit": "bun run src/cli.ts emit",
+    "images": "bun run src/cli.ts images"
+  },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/node": "^26.6.6"
