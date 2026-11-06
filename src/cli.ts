@@ -54,4 +54,13 @@ program
 		await resolvePokedex(setId)
 	})
 
+program
+	.command('ui')
+	.description('Start the web UI on http://localhost:<port>')
+	.option('--port <port>', 'HTTP port', '5173')
+	.action(async (opts) => {
+		const { startUi } = await import('./ui/server.ts')
+		await startUi(Number(opts.port))
+	})
+
 program.parseAsync()

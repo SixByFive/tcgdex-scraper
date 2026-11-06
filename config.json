@@ -31,5 +31,6 @@
   "cacheDir": "./cache",
   "outDir": "./out",
   "reviewDir": "./review",
-  "cardmarketDir": "./cardmarket-ids"
+  "cardmarketDir": "./cardmarket-ids",
+  "cardsDatabaseDir": "H:/cards-database"
 }
