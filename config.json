@@ -1,0 +1,14 @@
+{
+  "locales": {
+    "en": "https://www.pokemon.com/uk",
+    "de": "https://www.pokemon.com/de",
+    "fr": "https://www.pokemon.com/fr",
+    "it": "https://www.pokemon.com/it",
+    "es": "https://www.pokemon.com/es",
+    "es-mx": "https://www.pokemon.com/mx",
+    "pt": "https://www.pokemon.com/br"
+  },
+  "concurrency": 3,
+  "cacheDir": "./cache",
+  "outDir": "./out"
+}
