@@ -1,13 +1,31 @@
 {
   "locales": {
-    "en": "https://www.pokemon.com/uk",
-    "de": "https://www.pokemon.com/de",
-    "fr": "https://www.pokemon.com/fr",
-    "it": "https://www.pokemon.com/it",
-    "es": "https://www.pokemon.com/es",
-    "es-mx": "https://www.pokemon.com/mx",
-    "pt": "https://www.pokemon.com/br"
+    "en": {
+      "host": "https://www.pokemon.com",
+      "cardPath": "/uk/pokemon-tcg/pokemon-cards/series/{slug}/{n}/"
+    },
+    "de": {
+      "host": "https://www.pokemon.com",
+      "cardPath": "/de/pokemon-sammelkartenspiel/pokemon-karten/serien/{slug}/{n}/"
+    },
+    "fr": {
+      "host": "https://www.pokemon.com",
+      "cardPath": "/fr/jcc-pokemon/cartes-pokemon/series/{slug}/{n}/"
+    },
+    "it": {
+      "host": "https://www.pokemon.com",
+      "cardPath": "/it/gcc/archivio-carte/series/{slug}/{n}/"
+    },
+    "es": {
+      "host": "https://www.pokemon.com",
+      "cardPath": "/es/jcc-pokemon/cartas-pokemon/series/{slug}/{n}/"
+    },
+    "pt": {
+      "host": "https://www.pokemon.com",
+      "cardPath": "/br/pokemon-estampas-ilustradas/cartas-de-pokemon/series/{slug}/{n}/"
+    }
   },
+  "esMxFallback": "es",
   "concurrency": 3,
   "userAgent": "tcgdex-scraper/0.1 (+contact@tcgdex.dev)",
   "cacheDir": "./cache",
