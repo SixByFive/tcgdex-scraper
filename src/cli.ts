@@ -6,14 +6,14 @@ const program = new Command()
     .version('0.1.0')
 
 const scrape = program.command('scrape')
-scrape 
-    .command('set <pokemonComSlug>')
-    .requiredOption('--serie <serieId>', 'TCGDex serie ID, e.g. sv')
-    .requiredOption('--set <setId>', 'TCGDex set ID, e.g. sv11')
-    .action(async (slug, opts) => {
-        const { scrapeSet } = await import('./sources/pokemon-com')
-        await scrapeSet(slug, opts)
-    })
+scrape
+	.command('set <pokemonComSlug>')
+	.requiredOption('--serie <serieId>', 'tcgdex Serie id, e.g. sv')
+	.requiredOption('--set <setId>', 'tcgdex Set id, e.g. sv11')
+	.action(async (slug, opts) => {
+		const { scrapeSet } = await import('./sources/pokemon-com.ts')
+		await scrapeSet(slug, { serie: opts.serie, setId: opts.set })
+	})
 
 const prices = program.command('prices')
 prices

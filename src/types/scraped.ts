@@ -11,6 +11,7 @@ export interface ScrapedStructural {
     number: number
     total: number
     rarity: string | null
+    hp: number | null
     types: EnergyTypes[]
     stage: string | null
     category: 'Pokemon' | 'Trainer' | 'Energy'

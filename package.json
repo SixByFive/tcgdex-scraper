@@ -12,15 +12,18 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/node": "^26.6.6"
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15"
   },
   "peerDependencies": {
     "typescript": "^7.0.2"
   },
   "dependencies": {
     "cheerio": "^1.2.0",
+    "chromium": "^3.0.3",
     "commander": "^15.0.0",
     "p-limit": "^7.3.3",
+    "playwright": "^1.65.0",
     "undici": "^8.12.4",
     "zod": "^4.6.7"
   }
