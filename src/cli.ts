@@ -46,4 +46,12 @@ program
         await downloadImages(setId)
     })
 
+program
+	.command('pokedex <setId>')
+	.description('Resolve pokedexSlug → dexIds via PokeAPI')
+	.action(async (setId) => {
+		const { resolvePokedex } = await import('./sources/pokedex.ts')
+		await resolvePokedex(setId)
+	})
+
 program.parseAsync()

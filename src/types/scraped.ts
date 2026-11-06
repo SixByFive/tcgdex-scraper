@@ -17,6 +17,8 @@ export interface ScrapedStructural {
     category: 'Pokemon' | 'Trainer' | 'Energy'
     trainerSubtype: string | null 
     evolvesFromKey: string | null
+    pokedexSlug: string | null
+    dexIds: number[]
     retreat: number | null
     weaknesses: { type: EnergyTypes; value: string }[]
     resistances: { type: EnergyTypes; value: string }[]

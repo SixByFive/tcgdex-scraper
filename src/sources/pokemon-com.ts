@@ -122,6 +122,9 @@ function parseLocale(html: string): { structural: Partial<ScrapedStructural>; lo
 
 	const illustrator = $('.illustrator a').first().text().trim() || null
 
+    const pokedexSlug = $('a[href*="/pokedex/"]').first().attr('href')
+		?.match(/\/pokedex\/([^/?#]+)/)?.[1] ?? null
+
 	const imageUrl = $('.card-image img').attr('src')
 		|| $('main img').first().attr('src')
 		|| null
@@ -140,7 +143,8 @@ function parseLocale(html: string): { structural: Partial<ScrapedStructural>; lo
 			weaknesses,
 			resistances,
 			illustrator,
-			expansionSetCode
+			expansionSetCode,
+            pokedexSlug
 		},
 		locale: { name, evolvesFromName, abilities },
 		imageUrl
@@ -181,6 +185,8 @@ export async function scrapeSet(slug: string, opts: { serie: string; setId: stri
 				if (lang === 'en') {
 					structural = {
 						localId: String(n),
+                        pokedexSlug: parsed.structural.pokedexSlug ?? null,
+                        dexIds: [],
 						number: parsed.structural.number ?? n,
 						total: parsed.structural.total ?? total,
 						rarity: parsed.structural.rarity ?? null,
@@ -221,4 +227,7 @@ export async function scrapeSet(slug: string, opts: { serie: string; setId: stri
 	} finally {
 		await closeBrowser()
 	}
+
+    const { resolvePokedex } = await import('./pokedex.ts')
+    await resolvePokedex(opts.setId)
 }
