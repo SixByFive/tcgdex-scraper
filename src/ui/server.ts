@@ -26,6 +26,7 @@ import { existsSync } from 'node:fs'
 import { buildSetMeta } from '../sources/set-meta.ts'
 import { emitExperimental } from '../emit/experimental.ts'
 import { defaultRepo, intlDir, listSets as listExperimentalSets } from '../util/experimental.ts'
+import { buildCatalog, registrySet } from './catalog.ts'
 
 const PUBLIC_DIR = join(dirname(fileURLToPath(import.meta.url)), 'public')
 const MIME: Record<string, string> = {
@@ -297,6 +298,7 @@ export async function startUi(port = 5173): Promise<void> {
 		}
 
 		if (path === '/api/sets') return jsonRes(res, await listSets())
+		if (path === '/api/catalog') return jsonRes(res, await buildCatalog(await currentRepo()))
 		if (path === '/api/db/sets') return jsonRes(res, await listDbSets())
 
 		// File upload: raw bytes in body, filename in ?name= query — client picks a file,
@@ -512,6 +514,18 @@ export async function startUi(port = 5173): Promise<void> {
 			return jsonRes(res, { ok: true, mappingPath: context.mappingPath, mapping: next })
 		}
 		*/
+		// Catalog: scrape a registry set, optionally ignoring the cache (every page is downloaded again). The slug and series come from the registry.
+		if (path === '/api/catalog/scrape' && req.method === 'POST') {
+			let body: { setId?: string; fresh?: boolean } = {}
+			try { body = await readJsonBody(req) } catch { res.writeHead(400).end('bad json'); return }
+			const setId = (body.setId ?? '').trim()
+			const set = setId ? await registrySet(setId) : undefined
+			if (!set) return jsonRes(res, { error: `${setId || 'no set'} is not a scrapable set in the registry` }, 400)
+			const args = ['scrape', 'set', set.slug, '--serie', set.series, '--set', setId, ...(body.fresh ? ['--fresh'] : []), ...(set.tcgplayerGroup ? ['--tcgplayer-set', String(set.tcgplayerGroup)] : [])]
+			const result = spawnJob(setId, 'scrape', args)
+			return jsonRes(res, result, result.running ? 409 : 200)
+		}
+
 		const actionMatch = path.match(/^\/api\/sets\/([^/]+)\/(scrape|pokedex|emit|enrich)$/)
 		if (actionMatch) {
 			const setId = decodeURIComponent(actionMatch[1]!)

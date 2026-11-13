@@ -1,6 +1,7 @@
 const app = document.getElementById('app')
 const modalRoot = document.getElementById('modal-root')
 const topbarStatus = document.getElementById('topbar-status')
+import { renderCatalog as drawCatalog } from './catalog.js'
 
 let currentEs = null
 let currentCards = []  // cache for modal lookup
@@ -26,6 +27,7 @@ function route() {
 	const hash = window.location.hash.slice(1) || '/'
 	const parts = hash.split('/').filter(Boolean).map(decodeURIComponent)
 	if (parts.length === 0) return renderSetsIndex()
+	if (parts[0] === 'catalog') return drawCatalog(app, { closeStream, setTopbarStatus })
 	if (parts[0] === 'experimental') return renderExperimental(parts[1] ?? '')
 	// pricing is off for now: the enrich page is not reachable (re-enable with the buttons and /api/enrich/* routes)
 	// if (parts[0] === 'enrich' && parts.length >= 3) {

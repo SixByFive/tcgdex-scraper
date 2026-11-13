@@ -78,11 +78,20 @@ async function pace(): Promise<void> {
 	if (wait > 0) await new Promise((r) => setTimeout(r, wait))
 }
 
+// With `fresh` on, a page or listing is fetched again even when it is cached, and the new copy replaces the cached one.
+// Each URL is fetched again once per run, so a page asked for twice in the same run is not downloaded twice.
+let fresh = false
+const refetched = new Set<string>()
+export function setFresh(on: boolean): void { fresh = on; refetched.clear() }
+const mustFetch = (url: string) => fresh && !refetched.has(url)
+
 export async function getCached(url: string): Promise<string> {
 	const path = join(config.cacheDir, `${sha(url)}.html`)
-	try {
-		return await readFile(path, 'utf8')
-	} catch {}
+	if (!mustFetch(url)) {
+		try {
+			return await readFile(path, 'utf8')
+		} catch {}
+	}
 
 	const html = await pageLimit(async () => {
 		const ctx = await ensureContext()
@@ -128,6 +137,7 @@ export async function getCached(url: string): Promise<string> {
 	}
 	await mkdir(dirname(path), { recursive: true })
 	await writeFile(path, html)
+	refetched.add(url)
 	return html
 }
 
@@ -169,7 +179,7 @@ async function waitOutChallenge(page: import('playwright').Page, url: string): P
  */
 export async function getListingKeys(url: string): Promise<string[]> {
 	const path = join(config.cacheDir, `${sha(url)}.listing.json`)
-	try { return JSON.parse(await readFile(path, 'utf8')) } catch {}
+	if (!mustFetch(url)) { try { return JSON.parse(await readFile(path, 'utf8')) } catch {} }
 
 	const keys = await pageLimit(async () => {
 		const ctx = await ensureContext()
@@ -190,6 +200,7 @@ export async function getListingKeys(url: string): Promise<string[]> {
 	if (!keys.length) throw new Error(`No cards listed at ${url} (bot wall?)`)
 	await mkdir(dirname(path), { recursive: true })
 	await writeFile(path, JSON.stringify(keys))
+	refetched.add(url)
 	return keys
 }
 

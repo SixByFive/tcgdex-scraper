@@ -14,7 +14,9 @@ scrape
 	.option('--no-enrich', 'do not fetch variants/provider ids and TCGdex extras after scraping')
 	.option('--tcgplayer-set <id>', 'TCGplayer group id (found by name when omitted)', (v) => Number(v))
 	.option('--repo <path>', 'Experimental repo path (used to find the set and its schema)')
+	.option('--fresh', 'ignore the cache: download every page again and replace the cached copy')
 	.action(async (slug, opts) => {
+		if (opts.fresh) (await import('./util/fetch.ts')).setFresh(true)
 		const { scrapeSet } = await import('./sources/pokemon-com.ts')
 		await scrapeSet(slug, { serie: opts.serie, setId: opts.set, enrich: opts.enrich !== false, tcgplayerSet: opts.tcgplayerSet, repo: opts.repo, count: opts.count })
 		// nothing should keep the process alive after a scrape (a leaked browser used to); make sure it ends
