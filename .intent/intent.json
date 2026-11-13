@@ -1,0 +1,6 @@
+{
+  "version": "1",
+  "project": "tcgdex-scraper",
+  "systems": ["scrape", "enrichment", "web-ui"],
+  "created": "2026-11-06T22:00:00.000Z"
+}

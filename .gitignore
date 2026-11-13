@@ -40,3 +40,4 @@ cardmarket-ids/
 review/
 *.log
 .env
+/var

@@ -1,0 +1,45 @@
+{
+	"mep": {
+		"slug": "mep",
+		"tcgplayerGroup": 24451
+	},
+	"svp": {
+		"slug": "svp",
+		"tcgplayerGroup": 22872
+	},
+	"swshp": {
+		"slug": "swshp",
+		"tcgplayerGroup": 2545
+	},
+	"swsh10.5": {
+		"slug": "pgo"
+	},
+	"30th": {
+		"slug": "30th"
+	},
+	"30th-c": {
+		"slug": "30th-c",
+		"tcgplayerGroup": 24837
+	},
+	"mee": {
+		"skip": "Energy set: pokemon.com has no expansion of its own"
+	},
+	"sve": {
+		"skip": "Energy set: pokemon.com has no expansion of its own"
+	},
+	"mfb": {
+		"skip": "My First Battle: not on pokemon.com's card database"
+	},
+	"fut2020": {
+		"skip": "Pokémon Futsal 2020: not on pokemon.com's card database"
+	},
+	"sv03.5": {
+		"tcgplayerGroup": 23237
+	},
+	"sv01": {
+		"tcgplayerGroup": 22873
+	},
+	"swsh1": {
+		"tcgplayerGroup": 2585
+	}
+}

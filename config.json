@@ -26,11 +26,15 @@
     }
   },
   "esMxFallback": "es",
-  "concurrency": 3,
+  "concurrency": 2,
+  "requestDelayMs": [500, 1500],
+  "blockMedia": false,
+  "browserProfileDir": "./cache/browser-profile",
   "userAgent": "tcgdex-scraper/0.1 (+contact@tcgdex.dev)",
   "cacheDir": "./cache",
   "outDir": "./out",
   "reviewDir": "./review",
   "cardmarketDir": "./cardmarket-ids",
-  "cardsDatabaseDir": "H:/cards-database"
+  "cardsDatabaseDir": "H:/cards-database",
+  "experimentalRepo": "H:/TCGDex Experimental"
 }

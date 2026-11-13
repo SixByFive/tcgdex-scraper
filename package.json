@@ -4,9 +4,16 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "scrape:set": "bun run src/cli.ts scrape set",
+    "scrape:set": "tsx src/cli.ts scrape set",
     "prices:tcgplayer": "bun run src/cli.ts prices tcgplayer",
     "prices:cardmarket": "bun run src/cli.ts prices cardmarket",
+    "ui": "bun run src/cli.ts ui",
+    "enrich-scraped": "bun run src/cli.ts enrich-scraped",
+    "reorder-variants": "bun run src/cli.ts reorder-variants",
+    "build-era": "tsx src/cli.ts build-era",
+    "registry": "tsx src/cli.ts registry",
+    "set-meta": "bun run src/cli.ts set-meta",
+    "emit-experimental": "bun run src/cli.ts emit-experimental",
     "emit": "bun run src/cli.ts emit",
     "images": "bun run src/cli.ts images"
   },
