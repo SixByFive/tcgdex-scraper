@@ -154,6 +154,8 @@ const CHALLENGE_WAIT_MS = 10 * 60 * 1000
  */
 async function isChallenge(page: import('playwright').Page): Promise<boolean> {
 	try {
+		// Imperva serves its challenge from an iframe (/_Incapsula_Resource) with an empty top-level page: the text and DOM checks below can't see it
+		if (page.frames().some((f) => /_Incapsula_Resource|hcaptcha\.com|captcha-delivery|datadome/i.test(f.url()))) return true
 		return await page.evaluate(() => {
 			const text = document.body?.innerText ?? ''
 			return /additional security check|security check is required|imperva|i am human|pardon our interruption|verify you are (a )?human|are you a robot/i.test(text)
