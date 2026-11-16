@@ -340,7 +340,7 @@ function resolveVariantType(text: string, foil?: string): CardVariantType {
 
 function resolveFoil(text: string): string | undefined {
 	const checks: Array<[string, string[]]> = [
-		['cosmos', ['cosmos']],
+		['cosmos', ['cosmos', 'cosmo holo']],
 		['galaxy', ['galaxy']],
 		['cracked-ice', ['cracked ice', 'cracked-ice']],
 		['starlight', ['starlight']],
@@ -398,6 +398,63 @@ function resolveStamps(text: string): string[] {
 		['squirtle', ['squirtle stamp']],
 		['charmander', ['charmander stamp']],
 		['ace-trainer', ['ace trainer']],
+
+		// retail and promo programmes
+		['toys-r-us', ['toys r us', "toys 'r' us", 'toys "r" us', 'toys’r’us', 'toysrus']],
+		['build-a-bear', ['build a bear']],
+		['pokeball', ['poke ball stamp', 'pokeball stamp', 'poké ball stamp']],
+		['30th-pokeday', ['30th pokeday', 'pokeday', 'poke day']],
+		['pokemon-together', ['pokemon together', 'pokémon together']],
+		['jr-stamp-rally', ['jr stamp rally', 'stamp rally']],
+		['thank-you', ['thank you stamp', 'thank you promo']],
+		['asia-promo', ['asia promo']],
+		['asia-2023-24', ['asia 2023', 'asia 2024', 'asia championship series 23 24']],
+		['illustration-contest-2022', ['illustration contest 2022']],
+		['illustration-contest-2024', ['illustration contest 2024']],
+		['judge', ['judge stamp', 'judge promo']],
+		['champion', ['champion stamp', 'champion promo']],
+		['player-rewards-program', ['player rewards', 'player reward']],
+		['professor-program', ['professor program']],
+		['30th-anniversary', ['30th anniversary', '30th celebration']],
+		['horizons', ['pokemon horizons stamp', 'horizons stamp']],
+		['10th-anniversary', ['10th anniversary']],
+		['pokemon-4-ever', ['pokemon 4ever', 'pokemon 4 ever']],
+
+		// league and tournament prizes
+		['poke-ball-league', ['poke ball league', 'pokeball league', 'poké ball league']],
+		['great-ball-league', ['great ball league']],
+		['ultra-ball-league', ['ultra ball league']],
+		['master-ball-league', ['master ball league']],
+		['worlds-2022', ['worlds 2022', 'world championships 2022', 'world championship 2022']],
+		['worlds-2023', ['worlds 2023', 'world championships 2023', 'world championship 2023']],
+		['worlds-2024', ['worlds 2024', 'world championships 2024', 'world championship 2024']],
+		['worlds-2025', ['worlds 2025', 'world championships 2025', 'world championship 2025']],
+		['top-eight', ['top 8', 'top eight']],
+		['1st-place', ['1st place', 'first place']],
+		['2nd-place', ['2nd place', 'second place']],
+		['3rd-place', ['3rd place', 'third place']],
+		['4th-place', ['4th place', 'fourth place']],
+		['international-championship-europe', ['international championship europe', 'international championships europe', 'ic europe']],
+		['international-championship-latin-america', ['international championship latin america', 'international championships latin america', 'ic latin america', 'ic latam']],
+		['international-championship-north-america', ['international championship north america', 'international championships north america', 'ic north america']],
+		['regional-championships', ['regional championship']],
+		['national-championships', ['national championship']],
+		['state-championships', ['state championship']],
+		['city-championships', ['city championship']],
+		['stadium-challenge', ['stadium challenge']],
+		['tournament-collection', ['tournament collection']],
+		['pop-tournament', ['pop tournament']],
+
+		// events and older promos
+		['comic-con', ['comic con']],
+		['nintendo-world', ['nintendo world']],
+		['gen-con', ['gen con']],
+		['rain-city', ['rain city']],
+		['fossil-museum', ['fossil museum']],
+		['countdown-calendar', ['countdown calendar']],
+		['distributor-meeting', ['distributor meeting']],
+		['destiny-deoxys', ['destiny deoxys']],
+		['inquest-gamer', ['inquest']],
 	]
 
 	for (const [stamp, needles] of checks) {
@@ -405,6 +462,10 @@ function resolveStamps(text: string): string[] {
 			stamps.push(stamp)
 		}
 	}
+
+	// TCGplayer names a set's prerelease/event stamp "(<Set> Stamped)", e.g. "(Pitch Black Stamped)": the set-logo stamp.
+	// "Pokemon Horizons Stamped" is its own stamp (above), and "(#1 Cinderace Stamped)" is a different kind of mark.
+	if (/ stamped\b/.test(text) && !stamps.includes('horizons') && !text.includes('#1 ')) stamps.push('set-logo')
 
 	return normaliseStampList(stamps)
 }

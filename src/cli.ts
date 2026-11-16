@@ -23,6 +23,22 @@ scrape
 		process.exit(0)
 	})
 
+program
+	.command('reparse <setIds...>')
+	.description('Parse the cached pokemon.com pages of scraped sets again (no network) to refresh abilities and retreat costs')
+	.action(async (setIds: string[]) => {
+		const { loadRegistry } = await import('./registry/build.ts')
+		const { reparseSet } = await import('./sources/pokemon-com.ts')
+		const registry = await loadRegistry()
+		for (const id of setIds) {
+			const set = registry.sets.find((s) => s.id === id)
+			if (!set?.slug) { console.error(`${id}: not in the registry`); continue }
+			const r = await reparseSet(set.slug, id)
+			console.log(`[reparse] ${id}: ${r.cards} cards, ${r.changed} changed${r.missingPages ? `, ${r.missingPages} language pages not on disk (kept as they were)` : ''}`)
+		}
+		process.exit(0)
+	})
+
 // pricing is off for now; remove the comment markers to bring these back
 /*
 const prices = program.command('prices')

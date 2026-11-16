@@ -180,6 +180,17 @@ export async function buildSetMeta(opts: SetMetaOptions): Promise<SetMetaResult>
 				await writeFile(seriesFile, renderRecord('Series', seriesRecord), 'utf8')
 				written.push(seriesFile)
 			}
+			// A rebuild keeps what the file already has and no source here supplies: names in other languages (es-mx) and the
+			// Cardmarket expansion id. What this run did find (the TCGdex names, the TCGplayer group) replaces the old value.
+			if (existing) {
+				record.name = { ...existing.name, ...(record.name as Record<string, string>) }
+				const prices = { ...(existing.prices ?? {}), ...((record.prices as Record<string, number> | undefined) ?? {}) }
+				record.prices = Object.keys(prices).length ? prices : undefined
+			}
+			// the repo keeps these keys alphabetical (de, en, es, es-mx, fr ...; cardmarket, tcgplayer)
+			const sorted = <T,>(o: Record<string, T>) => Object.fromEntries(Object.entries(o).sort(([a], [b]) => a.localeCompare(b)))
+			record.name = sorted(record.name as Record<string, string>)
+			if (record.prices) record.prices = sorted(record.prices as Record<string, number>)
 			await mkdir(series.folder, { recursive: true })
 			await writeFile(setFile, renderRecord('CardSet', record), 'utf8')
 			written.push(setFile)

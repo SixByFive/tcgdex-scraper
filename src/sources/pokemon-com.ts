@@ -1,8 +1,8 @@
 import * as cheerio from 'cheerio'
 import pLimit from 'p-limit'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { getCached, getListingKeys, closeBrowser } from '../util/fetch.ts'
+import { getCached, getListingKeys, closeBrowser, readCachedOnly } from '../util/fetch.ts'
 import type { EnergyTypes, Lang, ScrapedCard, ScrapedLocaleBlock, ScrapedStructural } from '../types/scraped.ts'
 import config from '../../config.json' with { type: 'json' }
 
@@ -66,9 +66,18 @@ function parseAbilityBlock($: cheerio.CheerioAPI, el: any): ScrapedLocaleBlock['
 	const cost: EnergyTypes[] = $el.find('ul.left > li').toArray()
 		.map((li) => energyFromLi($, li))
 		.filter((t): t is EnergyTypes => t !== null && t !== 'Free')
-	const name = $el.find('h4.left.label').text().trim() || null
+	let name = $el.find('h4.left.label').text().trim() || null
 	const damage = $el.find('span.right.plus').text().trim() || null
-	const effect = $el.find('pre p').text().trim() || null
+	let effect = $el.find('pre p').text().trim() || null
+
+	// An Ability has its own markup: <h3><div class="poke-ability">Ability</div><div>Scale Up</div></h3><p>effect</p>
+	const abilityHead = $el.find('h3 .poke-ability').first()
+	if (abilityHead.length && !name) {
+		name = abilityHead.parent().children().not('.poke-ability').first().text().trim() || null
+		// the paragraphs can sit in a wrapper (a VSTAR Power is inside div.vstar-power)
+		effect = $el.find('p').toArray().map((p) => $(p).text().trim()).filter(Boolean).join('\n') || null
+		return { kind: name ? 'ability' : 'rule', cost: [], name, damage: null, effect }
+	}
 
 	let kind: 'attack' | 'ability' | 'rule' = 'attack'
 	if (cost.length === 0 && !damage) {
@@ -77,7 +86,7 @@ function parseAbilityBlock($: cheerio.CheerioAPI, el: any): ScrapedLocaleBlock['
 	return { kind, cost, name, damage, effect }
 }
 
-function parseLocale(html: string): { structural: Partial<ScrapedStructural>; locale: ScrapedLocaleBlock; imageUrl: string | null } {
+export function parseLocale(html: string): { structural: Partial<ScrapedStructural>; locale: ScrapedLocaleBlock; imageUrl: string | null } {
 	const $ = cheerio.load(html)
 	const fci = $('.full-card-information').first()
 
@@ -122,7 +131,9 @@ function parseLocale(html: string): { structural: Partial<ScrapedStructural>; lo
 		})
 	})
 
-	const retreat = fci.find('.pokemon-stats .stat.last ul.card-energies > li').length || null
+	// a Pokémon with no retreat cost still has the stat, with an empty list: that is 0, not "unknown"
+	const retreatStat = fci.find('.pokemon-stats .stat.last')
+	const retreat = retreatStat.length ? retreatStat.find('ul.card-energies > li').length : null
 
 	const footer = fci.find('.stats-footer span').first().text().trim()
 	// "005/197 Double Rare": the first word is the number, everything after it is the rarity (it can be several words)
@@ -167,6 +178,36 @@ function parseLocale(html: string): { structural: Partial<ScrapedStructural>; lo
 		locale: { name, evolvesFromName, abilities },
 		imageUrl
 	}
+}
+
+/**
+ * Parses the pages already on disk again, without the network, and refreshes what the parser got wrong or learned since:
+ * the abilities of every language and the retreat cost. Everything else in the scraped cards (dex ids, variants, TCGdex data)
+ * stays as it is. Run `enrich-scraped` and `emit-experimental` afterwards to carry the change into the files.
+ */
+export async function reparseSet(slug: string, setId: string): Promise<{ cards: number; changed: number; missingPages: number }> {
+	const keyFor = await keyStyle(slug)
+	const dir = join(config.cacheDir, 'pokemon-com', setId)
+	let changed = 0, missingPages = 0, cards = 0
+	for (const f of (await readdir(dir)).filter((f) => f.endsWith('.json')).sort()) {
+		const file = join(dir, f)
+		const card = JSON.parse(await readFile(file, 'utf8')) as ScrapedCard
+		const n = Number(card.structural.localId)
+		const before = JSON.stringify([card.structural.retreat, Object.values(card.locales).map((l) => l?.abilities)])
+		for (const lang of Object.keys(card.locales) as Lang[]) {
+			const html = await readCachedOnly(urlFor(lang, slug, keyFor(n)))
+			if (!html) { missingPages++; continue }
+			const parsed = parseLocale(html)
+			card.locales[lang]!.abilities = parsed.locale.abilities
+			if (lang === 'en') card.structural.retreat = parsed.structural.retreat ?? null
+		}
+		cards++
+		if (JSON.stringify([card.structural.retreat, Object.values(card.locales).map((l) => l?.abilities)]) !== before) {
+			changed++
+			await writeFile(file, JSON.stringify(card, null, 2))
+		}
+	}
+	return { cards, changed, missingPages }
 }
 
 export async function scrapeSet(slug: string, opts: { serie: string; setId: string; enrich?: boolean; tcgplayerSet?: number; repo?: string; count?: number }) {

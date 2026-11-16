@@ -56,6 +56,8 @@ export interface ScrapedCard {
     /** added by `enrich-scraped`: when, and which TCGplayer group the variants came from */
     enrichedAt?: string
     tcgplayerSet?: number
+    /** how many of the card's variants got a TCGplayer id, or were added, from TCGCSV (Prize Pack reprints) */
+    tcgcsvVariants?: number
     /** variants with their Cardmarket / TCGplayer / CardTrader ids (TCGTracking), in schema form */
     variants?: VariantOut[]
     /** flavor text and regulation mark (TCGdex API) */

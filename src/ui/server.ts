@@ -194,8 +194,11 @@ async function handleAction(res: ServerResponse, req: IncomingMessage, setId: st
 	let args: string[]
 	if (kind === 'scrape') {
 		const cards = await listCards(setId)
-		const slug = cards[0]?.sourceSlug ?? setId
-		args = ['scrape', 'set', slug, '--serie', 'sv', '--set', setId]
+		// series, slug and TCGplayer group come from the registry; a set it does not list falls back to the cached slug and the id's letters (sv11 -> sv)
+		const reg = await registrySet(setId)
+		const slug = reg?.slug ?? cards[0]?.sourceSlug ?? setId
+		const serie = reg?.series ?? (/^[a-z]+/i.exec(setId)?.[0].toLowerCase() ?? 'sv')
+		args = ['scrape', 'set', slug, '--serie', serie, '--set', setId, ...(reg?.tcgplayerGroup ? ['--tcgplayer-set', String(reg.tcgplayerGroup)] : [])]
 	} else if (kind === 'pokedex') {
 		args = ['pokedex', setId]
 	} else if (kind === 'enrich') {

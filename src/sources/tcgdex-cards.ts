@@ -14,9 +14,25 @@ export interface CardExtras {
 	/** the evolutionary stage, which pokemon.com leaves off ex/V cards: "Stage1", "Stage2", ... */
 	stage?: string
 	description: Record<string, string>
+	/** the variants TCGdex lists for the card (finish, foil, size, stamps) with the provider ids it knows */
+	variants?: TcgdexVariant[]
+	/** set by `enrich-scraped`: how many of the card's variants were added from `variants` because TCGTracking has none like them */
+	variantsAdded?: number
 }
 
-interface TcgdexCard { name?: string; description?: string | null; regulationMark?: string | null; stage?: string | null }
+export interface TcgdexVariant {
+	type: string
+	foil?: string
+	size?: string
+	stamps?: string[]
+	cardmarket?: number
+	tcgplayer?: number
+}
+
+interface TcgdexCard {
+	name?: string; description?: string | null; regulationMark?: string | null; stage?: string | null
+	variants_detailed?: { type?: string; foil?: string; size?: string; stamp?: string[]; thirdParty?: { cardmarket?: number; tcgplayer?: number } }[]
+}
 
 /** One card in one language; null when TCGdex doesn't have it. Responses are cached on disk so a re-run costs nothing. */
 async function fetchCard(setId: string, localId: string, lang: string, fresh: boolean): Promise<TcgdexCard | null> {
@@ -55,7 +71,12 @@ export async function fetchCardExtras(setId: string, localIds: string[], warn: (
 				continue
 			}
 			if (!card) continue
-			if (lang === 'en') { extras.name = card.name?.trim(); if (card.regulationMark) extras.regulationMark = card.regulationMark; if (card.stage) extras.stage = card.stage }
+			if (lang === 'en') { extras.name = card.name?.trim(); if (card.regulationMark) extras.regulationMark = card.regulationMark; if (card.stage) extras.stage = card.stage
+				if (card.variants_detailed?.length) extras.variants = card.variants_detailed.filter((v) => v.type).map((v) => ({
+					type: v.type!, foil: v.foil || undefined, size: v.size && v.size !== 'standard' ? v.size : undefined,
+					stamps: v.stamp?.length ? [...v.stamp].sort() : undefined,
+					cardmarket: v.thirdParty?.cardmarket || undefined, tcgplayer: v.thirdParty?.tcgplayer || undefined
+				})) }
 			const text = card.description?.trim()
 			if (text) extras.description[lang] = text
 		}

@@ -9,7 +9,8 @@ export interface VariantOut {
 	foil?: string
 	size?: string
 	stamps?: string[]
-	prices: { cardmarket?: number; tcgplayer: number; cardtrader?: number }
+	/** a variant that only TCGdex lists may have just a Cardmarket id (or none) */
+	prices: { cardmarket?: number; tcgplayer?: number; cardtrader?: number }
 }
 
 const TYPE_ORDER = ['normal', 'holo', 'reverse', 'lenticular', 'metal']
@@ -21,7 +22,7 @@ const TYPES = new Set(TYPE_ORDER)
  */
 const BALL_PATTERNS = new Set(['pokeball', 'greatball', 'ultraball', 'masterball', 'loveball', 'friendball', 'quickball', 'duskball'])
 
-const idOf = (v: VariantOut) => [v.type, v.foil, v.size, v.stamps?.join('+')].filter(Boolean).join('-')
+export const idOf = (v: Pick<VariantOut, 'type' | 'foil' | 'size' | 'stamps'>) => [v.type, v.foil, v.size, v.stamps?.join('+')].filter(Boolean).join('-')
 
 
 /**
@@ -30,7 +31,14 @@ const idOf = (v: VariantOut) => [v.type, v.foil, v.size, v.stamps?.join('+')].fi
  * by stamp (pre-release, staff, ...) are separate products of the same number, so they become variants of the one card.
  * A variant whose finish, foil or stamp isn't in the schema is left out and reported, not approximated.
  */
-export async function buildVariants(groupId: number, schema: SchemaModule, warn: (msg: string) => void): Promise<Map<string, VariantOut[]>> {
+/** A card's name as a lookup key: no tags in brackets, no punctuation ("Genesect-EX" and "Genesect EX (Team Plasma)" agree). */
+export const nameKey = (s: string): string => s.replace(/\s+-\s+[A-Za-z]*\d+(?:\/\d+)?/g, ' ').replace(/\([^)]*\)|\[[^\]]*\]/g, ' ').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+
+/**
+ * `keyOf` says how products are keyed; by default their collector number. A reprint set's products carry the printed numbers of
+ * the sets the cards come from (30th Classic Collection's Charizard is "4/102"), so those are keyed by name instead.
+ */
+export async function buildVariants(groupId: number, schema: SchemaModule, warn: (msg: string) => void, keyOf?: (product: { id: number; name: string; number?: string | null }) => string | undefined): Promise<Map<string, VariantOut[]>> {
 	const [set, skus] = await Promise.all([fetchCards(groupId), fetchSkus(groupId)])
 	if (!skus) warn(`TCGTracking has no SKU data for group ${groupId}: variants come from CardTrader finishes and product names, so check them`)
 
@@ -40,7 +48,7 @@ export async function buildVariants(groupId: number, schema: SchemaModule, warn:
 	const byNumber = new Map<string, VariantOut[]>()
 
 	for (const product of set.products) {
-		const n = collectorKey(product.number)
+		const n = keyOf ? keyOf(product) : collectorKey(product.number)
 		if (n === undefined) continue
 		product.skus = skus?.[String(product.id)]
 		product.cardtrader ??= []

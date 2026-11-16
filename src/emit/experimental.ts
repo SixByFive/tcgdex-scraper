@@ -1,15 +1,17 @@
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { carryOver } from './carry-over.ts'
 import config from '../../config.json' with { type: 'json' }
 import type { ScrapedCard } from '../types/scraped.ts'
 import { cardKey, cardLocalId, damageValue, mapRarity, normaliseKind, perLang, tcgdexLocalId, toStage, typeList, typeValues } from './normalise.ts'
 import { buildVariants, sortVariants } from './variants.ts'
 import { fetchCardExtras } from '../sources/tcgdex-cards.ts'
-import { defaultRepo, listSets, loadFormat, loadSchema, today } from '../util/experimental.ts'
+import { defaultRepo, listSets, loadFormat, loadPriceProviders, loadSchema, today } from '../util/experimental.ts'
 
 // curly and straight apostrophes/quotes and case differ between sources for the same card
-const plain = (s: string) => s.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').toLowerCase().trim()
+const plain = (s: string) => s.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/-/g, ' ').replace(/ +/g, ' ').toLowerCase().trim()
 const sameName = (a: string, b: string) => plain(a) === plain(b)
 
 export interface ExperimentalEmitOptions {
@@ -59,7 +61,9 @@ export async function emitExperimental(opts: ExperimentalEmitOptions): Promise<E
 	}
 	log(`[emit] ${scraped.length} scraped cards -> ${set.dir}`)
 
-	const [{ renderCard }, schema] = await Promise.all([loadFormat(repo), loadSchema(repo)])
+	const [{ renderCard }, schema, providers] = await Promise.all([loadFormat(repo), loadSchema(repo), loadPriceProviders(repo)])
+	let unpriceable = 0
+	let carriedOver = 0
 
 	// Variants, provider ids, flavor text and regulation marks are stored with the scrape (`scrape set` / `enrich-scraped`).
 	// A scrape made before that existed has none of it: then they are fetched live here, as before.
@@ -181,19 +185,34 @@ export async function emitExperimental(opts: ExperimentalEmitOptions): Promise<E
 
 		if (variants) {
 			const list = variants.get(cardKey(card) ?? '')
-			if (list?.length) out.variants = list
+			if (list?.length) {
+				// the repo accepts a provider's id on a variant only when the provider has a price group for its type (Cardmarket and
+				// TCGplayer have normal/holo/reverse): a lenticular or metal variant keeps its other ids and loses these
+				out.variants = list.map((v) => {
+					const prices = { ...v.prices } as Record<string, number | undefined>
+					for (const [provider, id] of Object.entries(prices)) {
+						const groups = providers[provider]?.subtypes
+						if (id != null && groups && Object.keys(groups).length > 0 && !(v.type in groups)) { delete prices[provider]; unpriceable++ }
+					}
+					return { ...v, prices }
+				})
+			}
 			else warn(`${label}: no TCGTracking product matched, written without variants`)
 		}
 
 		// Where the data came from. It is the scraper's own reading of three sources, not checked against a card by anyone,
 		// so it is `inferred` (not `verified`).
 		out.provenance = {
-			source: ['pokemon.com', ...(out.variants ? ['tcgtracking'] : []), ...(usedTcgdex ? ['tcgdex-api'] : [])].join(' + '),
+			source: ['pokemon.com', ...(out.variants && out.variants.length > (tcgdex?.variantsAdded ?? 0) + (card.tcgcsvVariants ?? 0) ? ['tcgtracking'] : []), ...(card.tcgcsvVariants ? ['tcgcsv'] : []), ...(usedTcgdex || (tcgdex?.variantsAdded ?? 0) > 0 ? ['tcgdex-api'] : [])].join(' + '),
 			importedAt: today(),
 			validation: 'inferred'
 		}
 
 		if (existsSync(file) && !opts.overwrite) { skipped.push(file); continue }
+		// a rebuild keeps the es-mx text and cameo ids the file it replaces has and the scrape can't supply
+		if (existsSync(file)) {
+			try { carriedOver += carryOver(out, (await import(pathToFileURL(file).href + '?' + Math.random())).default) } catch { /* an unreadable old file: nothing to keep */ }
+		}
 		if (opts.apply) {
 			const previous = existsSync(file) ? await readFile(file, 'utf8') : ''
 			await writeFile(file, renderCard(out, previous), 'utf8')
@@ -201,6 +220,8 @@ export async function emitExperimental(opts: ExperimentalEmitOptions): Promise<E
 		written.push(file)
 	}
 
+	if (carriedOver) log(`[emit] kept ${carriedOver} values (es-mx text, cameo dex ids) from the files being replaced`)
+	if (unpriceable) log(`[emit] ${unpriceable} provider ids left off variants whose type the provider has no price group for (e.g. lenticular)`)
 	log(`[emit] ${opts.apply ? 'wrote' : 'would write'} ${written.length} cards, ${skipped.length} skipped, ${warnings.length} warnings${opts.apply ? '' : ' (pass --apply)'}`)
 	const existing = skipped.filter((f) => existsSync(f)).length
 	if (existing > 0 && !opts.overwrite) log(`[emit] ${existing} cards were NOT written because their files already exist. To replace them, tick "Overwrite existing files" (or pass --overwrite).`)

@@ -78,13 +78,16 @@ export function normaliseKind(card: ScrapedCard): Normalised {
 		suffix = 'ex'
 	} else if (category === 'Pokemon') {
 		// "Tera" is a card label (Tera Pokémon ex), not a stage: like a bare "ex" it says nothing about the stage
-		const asSuffix = ci(SUFFIXES, raw) ?? (/^tera$/i.test(raw) ? 'ex' as const : undefined)
+		// older cards hyphenate it ("Genesect-EX" is titled "-EX", "Pikachu & Zekrom GX" is "TAG TEAM")
+		const bare = raw.replace(/^-/, '')
+		const asSuffix = ci(SUFFIXES, bare) ?? (/^tera$/i.test(bare) ? 'ex' as const : /^tag team$/i.test(bare) ? 'TAG TEAM-GX' as const : undefined)
 		if (asSuffix) {
 			// the page titles these just "<suffix>" and gives no stage; a Pokémon that evolves from nothing is Basic
 			suffix = asSuffix
 			if (!en?.evolvesFromName) stage = 'Basic'
 			else warnings.push(`stage unknown: "${en.name}" is an evolving ${asSuffix} (pokemon.com gives no stage)`)
 		} else if (raw === 'Mega') stage = 'MEGA'
+		else if (/^lv\.?\s?x$/i.test(raw)) stage = 'LEVEL-UP'
 		else if (raw) {
 			stage = ci(STAGES, raw)
 			if (!stage) warnings.push(`unmapped stage "${raw}"`)

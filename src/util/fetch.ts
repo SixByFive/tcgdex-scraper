@@ -85,6 +85,11 @@ const refetched = new Set<string>()
 export function setFresh(on: boolean): void { fresh = on; refetched.clear() }
 const mustFetch = (url: string) => fresh && !refetched.has(url)
 
+/** The page as it is on disk, or null: never goes to the network. */
+export async function readCachedOnly(url: string): Promise<string | null> {
+	try { return await readFile(join(config.cacheDir, `${sha(url)}.html`), 'utf8') } catch { return null }
+}
+
 export async function getCached(url: string): Promise<string> {
 	const path = join(config.cacheDir, `${sha(url)}.html`)
 	if (!mustFetch(url)) {

@@ -31,6 +31,11 @@ const load = async <T>(repo: string, rel: string): Promise<T> => import(pathToFi
 export const loadFormat = (repo: string) => load<FormatModule>(repo, 'scripts/data/format.ts')
 export const loadSchema = (repo: string) => load<SchemaModule>(repo, 'schemas/pokemon.ts')
 
+/** provider -> { subtypes }: which variant types (price groups) each provider can price. `subtypes: {}` means ids only. */
+export type PriceProviderRules = Record<string, { subtypes: Record<string, string> }>
+export const loadPriceProviders = async (repo: string): Promise<PriceProviderRules> =>
+	(await load<{ default: PriceProviderRules }>(repo, 'data/price-providers.ts')).default
+
 export interface SeriesEntry { id: string; name: Record<string, string>; file: string; folder: string }
 export interface SetEntry {
 	id: string
