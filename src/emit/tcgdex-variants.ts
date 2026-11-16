@@ -11,7 +11,10 @@ const TYPES = new Set(['normal', 'holo', 'reverse', 'lenticular', 'metal'])
  * is left out and reported, never approximated.
  * Returns the merged list (sorted) and how many variants came from TCGdex alone.
  */
-export function mergeTcgdexVariants(existing: VariantOut[] | undefined, fromTcgdex: TcgdexVariant[] | undefined, schema: SchemaModule, warn: (m: string) => void, label: string): { list: VariantOut[]; added: number } {
+/** What TCGTracking knows of a TCGplayer product: the ids a variant TCGdex lists for that product can be completed with. */
+export type ProductIds = Map<number, { cardmarket_id?: number | null; cardtrader_id?: number | null }>
+
+export function mergeTcgdexVariants(existing: VariantOut[] | undefined, fromTcgdex: TcgdexVariant[] | undefined, schema: SchemaModule, warn: (m: string) => void, label: string, productIds?: ProductIds): { list: VariantOut[]; added: number } {
 	const list = (existing ?? []).map((v) => ({ ...v, prices: { ...v.prices } }))
 	if (!fromTcgdex?.length) return { list, added: 0 }
 	const foils = new Set<string>(schema.foils)
@@ -32,6 +35,8 @@ export function mergeTcgdexVariants(existing: VariantOut[] | undefined, fromTcgd
 		if (have) {
 			have.prices.cardmarket ??= td.cardmarket
 			have.prices.tcgplayer ??= td.tcgplayer
+			const known = have.prices.tcgplayer ? productIds?.get(have.prices.tcgplayer) : undefined
+			if (known?.cardtrader_id) have.prices.cardtrader ??= known.cardtrader_id
 			continue
 		}
 		// the same product under another label: TCGTracking calls it plain holo, TCGdex knows it is the gold (or cosmos, ...)
@@ -42,7 +47,9 @@ export function mergeTcgdexVariants(existing: VariantOut[] | undefined, fromTcgd
 			relabel.type = v.type; relabel.foil = v.foil; relabel.size = v.size; relabel.stamps = v.stamps
 			continue
 		}
-		v.prices = { cardmarket: td.cardmarket, tcgplayer: td.tcgplayer }
+		// TCGdex gives Cardmarket and TCGplayer ids; the TCGTracking product with that TCGplayer id knows the CardTrader one
+		const product = td.tcgplayer ? productIds?.get(td.tcgplayer) : undefined
+		v.prices = { cardmarket: td.cardmarket ?? product?.cardmarket_id ?? undefined, tcgplayer: td.tcgplayer, cardtrader: product?.cardtrader_id ?? undefined }
 		list.push(v)
 		added++
 	}

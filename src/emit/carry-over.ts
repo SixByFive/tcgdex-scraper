@@ -31,6 +31,12 @@ export function carryOver(out: Record<string, any>, existing: unknown): number {
 		carried++
 	}
 
+	// the Pokédex numbers come from PokeAPI: when that was unreachable the scrape has none, and the file's own are kept
+	if (Array.isArray(existing.dexId) && existing.dexId.length && !out.dexId) {
+		out.dexId = [...existing.dexId]
+		carried++
+	}
+
 	// values the page doesn't give for an old card (a retreat cost of 0, the SP suffix) stay as the file had them
 	for (const key of ['retreat', 'suffix'] as const) {
 		if (existing[key] !== undefined && out[key] === undefined) { out[key] = existing[key]; carried++ }

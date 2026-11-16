@@ -32,13 +32,13 @@ export const idOf = (v: Pick<VariantOut, 'type' | 'foil' | 'size' | 'stamps'>) =
  * A variant whose finish, foil or stamp isn't in the schema is left out and reported, not approximated.
  */
 /** A card's name as a lookup key: no tags in brackets, no punctuation ("Genesect-EX" and "Genesect EX (Team Plasma)" agree). */
-export const nameKey = (s: string): string => s.replace(/\s+-\s+[A-Za-z]*\d+(?:\/\d+)?/g, ' ').replace(/\([^)]*\)|\[[^\]]*\]/g, ' ').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+export const nameKey = (s: string): string => s.replace(/\s+-\s+[A-Za-z]*\d+(?:\/\d+)?/g, ' ').replace(/\([^)]*\)|\[[^\]]*\]/g, ' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 
 /**
  * `keyOf` says how products are keyed; by default their collector number. A reprint set's products carry the printed numbers of
  * the sets the cards come from (30th Classic Collection's Charizard is "4/102"), so those are keyed by name instead.
  */
-export async function buildVariants(groupId: number, schema: SchemaModule, warn: (msg: string) => void, keyOf?: (product: { id: number; name: string; number?: string | null }) => string | undefined): Promise<Map<string, VariantOut[]>> {
+export async function buildVariants(groupId: number, schema: SchemaModule, warn: (msg: string) => void, keyOf?: (product: { id: number; name: string; number?: string | null }) => string | undefined, cardNames?: Map<string, Set<string>>): Promise<Map<string, VariantOut[]>> {
 	const [set, skus] = await Promise.all([fetchCards(groupId), fetchSkus(groupId)])
 	if (!skus) warn(`TCGTracking has no SKU data for group ${groupId}: variants come from CardTrader finishes and product names, so check them`)
 
@@ -47,7 +47,26 @@ export async function buildVariants(groupId: number, schema: SchemaModule, warn:
 	// keyed by collector key: "5" for "005/197", "TG01" for "TG01/TG30" (see collectorKey)
 	const byNumber = new Map<string, VariantOut[]>()
 
+	// Some products share a collector number with a card without being it: TCGplayer numbers its Basic Energy products "1", "2", ...,
+	// which is also the number of Joltik "001/064". When `cardNames` (collector key -> the names of the cards that have it) is given,
+	// a number that several products have keeps the ones named like the card, and only falls back to all of them when none is.
+	const skip = new Set<number>()
+	if (cardNames && !keyOf) {
+		const byKey = new Map<string, typeof set.products>()
+		for (const product of set.products) {
+			const k = collectorKey(product.number)
+			if (k !== undefined) byKey.set(k, [...(byKey.get(k) ?? []), product])
+		}
+		for (const [k, products] of byKey) {
+			const names = cardNames.get(k)
+			if (!names || products.length < 2) continue
+			const named = products.filter((p) => names.has(nameKey(p.name)))
+			if (named.length > 0 && named.length < products.length) for (const p of products) if (!named.includes(p)) skip.add(p.id)
+		}
+	}
+
 	for (const product of set.products) {
+		if (skip.has(product.id)) continue
 		const n = keyOf ? keyOf(product) : collectorKey(product.number)
 		if (n === undefined) continue
 		product.skus = skus?.[String(product.id)]

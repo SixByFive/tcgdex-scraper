@@ -11,6 +11,8 @@ export interface CardExtras {
 	/** the English name TCGdex has for the card, to check it is the same card as the scraped one */
 	name?: string
 	regulationMark?: string
+	/** national Pokédex number(s), for a card pokemon.com gives no Pokédex link for */
+	dexId?: number[]
 	/** the evolutionary stage, which pokemon.com leaves off ex/V cards: "Stage1", "Stage2", ... */
 	stage?: string
 	description: Record<string, string>
@@ -30,22 +32,35 @@ export interface TcgdexVariant {
 }
 
 interface TcgdexCard {
-	name?: string; description?: string | null; regulationMark?: string | null; stage?: string | null
+	name?: string; description?: string | null; regulationMark?: string | null; stage?: string | null; dexId?: number[] | null
 	variants_detailed?: { type?: string; foil?: string; size?: string; stamp?: string[]; thirdParty?: { cardmarket?: number; tcgplayer?: number } }[]
 }
 
 /** One card in one language; null when TCGdex doesn't have it. Responses are cached on disk so a re-run costs nothing. */
 async function fetchCard(setId: string, localId: string, lang: string, fresh: boolean): Promise<TcgdexCard | null> {
 	const file = join(config.cacheDir, 'tcgdex', setId, lang, `${localId}.json`)
-	if (!fresh && existsSync(file)) return JSON.parse(await readFile(file, 'utf8'))
-	const res = await fetch(`${TCGDEX}/${lang}/cards/${setId}-${localId}`, { headers: { Accept: 'application/json', 'User-Agent': config.userAgent } })
-	if (res.status === 404) return null
-	if (!res.ok) throw new Error(`TCGdex ${lang}/cards/${setId}-${localId} -> ${res.status}`)
-	const body = await res.json().catch(() => null)
-	if (!body || typeof body !== 'object') return null
-	await mkdir(join(config.cacheDir, 'tcgdex', setId, lang), { recursive: true })
-	await writeFile(file, JSON.stringify(body))
-	return body as TcgdexCard
+	const cached = existsSync(file) ? (JSON.parse(await readFile(file, 'utf8')) as TcgdexCard) : null
+	if (!fresh && cached) return cached
+	// A failed request is tried again; if the API still doesn't answer, the last good answer on disk is used rather than nothing:
+	// an empty result would blank the card's regulation mark, stage and text.
+	let lastError: unknown
+	for (let attempt = 0; attempt < 4; attempt++) {
+		if (attempt > 0) await new Promise((r) => setTimeout(r, 1500 * attempt))
+		try {
+			const res = await fetch(`${TCGDEX}/${lang}/cards/${setId}-${localId}`, { headers: { Accept: 'application/json', 'User-Agent': config.userAgent }, signal: AbortSignal.timeout(20000) })
+			if (res.status === 404) return null
+			if (!res.ok) throw new Error(`TCGdex ${lang}/cards/${setId}-${localId} -> ${res.status}`)
+			const body = await res.json().catch(() => null)
+			if (!body || typeof body !== 'object') return null
+			await mkdir(join(config.cacheDir, 'tcgdex', setId, lang), { recursive: true })
+			await writeFile(file, JSON.stringify(body))
+			return body as TcgdexCard
+		} catch (err) {
+			lastError = err
+		}
+	}
+	if (cached) return cached
+	throw lastError
 }
 
 /**
@@ -72,6 +87,7 @@ export async function fetchCardExtras(setId: string, localIds: string[], warn: (
 			}
 			if (!card) continue
 			if (lang === 'en') { extras.name = card.name?.trim(); if (card.regulationMark) extras.regulationMark = card.regulationMark; if (card.stage) extras.stage = card.stage
+				if (card.dexId?.length) extras.dexId = card.dexId
 				if (card.variants_detailed?.length) extras.variants = card.variants_detailed.filter((v) => v.type).map((v) => ({
 					type: v.type!, foil: v.foil || undefined, size: v.size && v.size !== 'standard' ? v.size : undefined,
 					stamps: v.stamp?.length ? [...v.stamp].sort() : undefined,

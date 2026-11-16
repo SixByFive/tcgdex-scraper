@@ -322,8 +322,13 @@ export async function scrapeSet(slug: string, opts: { serie: string; setId: stri
 		await closeBrowser()
 	}
 
-    const { resolvePokedex } = await import('./pokedex.ts')
-    await resolvePokedex(opts.setId)
+    // the Pokédex numbers come from PokeAPI; if it can't be reached the scrape is still good and the enrich below goes on
+    try {
+        const { resolvePokedex } = await import('./pokedex.ts')
+        await resolvePokedex(opts.setId)
+    } catch (err) {
+        console.warn(`[pokedex] failed (${(err as Error).message}); run \`pokedex ${opts.setId}\` to retry`)
+    }
 
     // variants + Cardmarket/TCGplayer/CardTrader ids and TCGdex flavor text / regulation marks are stored with the scrape,
     // so `emit-experimental` only has to write files. A failure here does not undo the scrape: re-run `enrich-scraped`.

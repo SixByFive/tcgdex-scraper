@@ -9,7 +9,7 @@ import { buildSetMeta } from './set-meta.ts'
 import { defaultRepo, listSets, loadSchema } from '../util/experimental.ts'
 import { fetchCards } from '../util/tcgtracking-open.ts'
 import { cardKey, collectorKey, tcgdexLocalId } from '../emit/normalise.ts'
-import { mergeTcgdexVariants } from '../emit/tcgdex-variants.ts'
+import { mergeTcgdexVariants, type ProductIds } from '../emit/tcgdex-variants.ts'
 import { applyPrizePack, loadPrizePackIndex } from './tcgcsv.ts'
 
 // curly and straight apostrophes/quotes and case differ between sources for the same card
@@ -50,6 +50,7 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 	// ---- TCGTracking: variants and provider ids -------------------------------------------------------------------
 	let variants: Awaited<ReturnType<typeof buildVariants>> | undefined
 	let matchByName = false
+	let productIds: ProductIds | undefined
 	let cardNameKey: (card: ScrapedCard) => string = (card) => nameKey(card.locales.en?.name ?? '')
 	let groupId = opts.tcgplayerSet
 	if (!opts.noVariants) {
@@ -69,11 +70,18 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 		else {
 			log(`[enrich] TCGTracking group ${groupId}`)
 			const schema = await loadSchema(repo)
-			variants = await buildVariants(groupId, schema, warn)
+			// the names of the cards by collector number, so a product that only shares the number (a Basic Energy numbered "1") is not taken
+			const cardNames = new Map<string, Set<string>>()
+			for (const { card } of cards) {
+				const k = cardKey(card)
+				if (k !== undefined) cardNames.set(k, (cardNames.get(k) ?? new Set()).add(nameKey(card.locales.en?.name ?? '')))
+			}
+			variants = await buildVariants(groupId, schema, warn, undefined, cardNames)
 			// A reprint set's products carry the printed numbers of the sets the cards come from (30th Classic Collection's Charizard
 			// is "4/102"), so a number points at the wrong card. When the names behind the numbers don't match the cards' names,
 			// every card is matched by name instead.
 			const products = (await fetchCards(groupId)).products
+			productIds = new Map(products.map((p) => [p.id, { cardmarket_id: p.cardmarket_id, cardtrader_id: p.cardtrader_id }]))
 			const namesAt = new Map<string, string[]>()
 			for (const p of products) { const k = collectorKey(p.number); if (k !== undefined) namesAt.set(k, [...(namesAt.get(k) ?? []), nameKey(p.name)]) }
 			let checked = 0, disagree = 0
@@ -120,18 +128,20 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 		try { prize = await loadPrizePackIndex(warn) } catch (err) { warn(`TCGCSV: ${(err as Error).message}; Prize Pack ids skipped`) }
 	}
 
-	let withVariants = 0, withText = 0, withMark = 0, fromTcgdex = 0, fromTcgcsv = 0
+	let withVariants = 0, withText = 0, withMark = 0, fromTcgdex = 0, fromTcgcsv = 0, keptEarlier = 0
 	const now = new Date().toISOString()
 	const schema = await loadSchema(repo)
 	for (const { file, card } of cards) {
-		const e = extras?.get(tcgdexLocalId(card))
+		let e = extras?.get(tcgdexLocalId(card))
+		// TCGdex gave nothing for a card it had answered for before (a failed request): the earlier answer stays
+		if (e && !e.name && card.tcgdex?.name) { e = card.tcgdex; keptEarlier++ }
 		let list = variants?.get(matchByName ? cardNameKey(card) : cardKey(card) ?? '')
 		if (variants) card.tcgplayerSet = groupId
 		// variants TCGdex lists that TCGTracking has no product for (stamps, cosmos/gold patterns, jumbo), only for the same card
 		const enName = card.locales.en?.name
 		const sameCard = e && (!e.name || (enName && plain(e.name) === plain(enName)))
 		if (e && sameCard && e.variants?.length && !opts.noTcgdexVariants) {
-			const merged = mergeTcgdexVariants(list, e.variants, schema, warn, `${opts.setId}-${tcgdexLocalId(card)}`)
+			const merged = mergeTcgdexVariants(list, e.variants, schema, warn, `${opts.setId}-${tcgdexLocalId(card)}`, productIds)
 			list = merged.list
 			e.variantsAdded = merged.added
 			fromTcgdex += merged.added
@@ -153,8 +163,11 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 				if (e.regulationMark) withMark++
 			}
 		}
+		// a card pokemon.com has no Pokédex link for (Terapagos) takes the dex number TCGdex has, for the same card only
+		if (!card.structural.dexIds?.length && sameCard && e?.dexId?.length) card.structural.dexIds = [...e.dexId]
 		card.enrichedAt = now
 		await writeFile(file, JSON.stringify(card, null, 2))
 	}
+	if (keptEarlier) warn(`TCGdex gave nothing for ${keptEarlier} cards it had data for before (failed requests?): their earlier data was kept`)
 	log(`[enrich] stored: ${variants ? `${withVariants}/${cards.length} cards with variants` : 'variants skipped'}; ${extras ? `${withText} with flavor text, ${withMark} with a regulation mark${fromTcgdex ? `; ${fromTcgdex} variants added from TCGdex (stamps, patterns, sizes)` : ''}${fromTcgcsv ? `; ${fromTcgcsv} Prize Pack ids from TCGCSV` : ''}` : 'TCGdex skipped'}`)
 }
