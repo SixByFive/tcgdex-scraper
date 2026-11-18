@@ -121,7 +121,7 @@
    "slug": null,
    "tcgplayerGroup": null,
    "notes": [],
-   "skip": "Energy set: pokemon.com has no expansion of its own"
+   "source": "tcgdex"
   },
   {
    "id": "sv10.5w",
@@ -260,12 +260,14 @@
    "series": "sv",
    "name": "My First Battle",
    "releaseDate": "2023-09-29",
-   "official": 48,
-   "total": 48,
+   "official": 34,
+   "total": 34,
    "slug": null,
    "tcgplayerGroup": 23330,
-   "notes": [],
-   "skip": "My First Battle: not on pokemon.com's card database"
+   "notes": [
+    "TCGdex and TCGplayer count 48 products: the set has 34 cards, some in several printings (Blue Border, stamped)"
+   ],
+   "source": "tcgdex"
   },
   {
    "id": "sv03.5",
@@ -321,7 +323,7 @@
    "slug": null,
    "tcgplayerGroup": null,
    "notes": [],
-   "skip": "Energy set: pokemon.com has no expansion of its own"
+   "source": "tcgdex"
   },
   {
    "id": "sv01",
@@ -575,7 +577,7 @@
    "slug": null,
    "tcgplayerGroup": null,
    "notes": [],
-   "skip": "Pokémon Futsal 2020: not on pokemon.com's card database"
+   "source": "tcgdex"
   },
   {
    "id": "swsh3",

@@ -31,12 +31,14 @@ export interface RegistrySet {
 	tcgplayerGroup: number | null
 	/** why the set can't be built, when it can't (no pokemon.com source, ...) */
 	skip?: string
+	/** "tcgdex": pokemon.com doesn't have the set, so its cards are built from the TCGdex API */
+	source?: 'tcgdex'
 	notes: string[]
 }
 
 export interface Registry { generatedAt: string; sets: RegistrySet[] }
 
-interface Override { slug?: string | null; tcgplayerGroup?: number | null; skip?: string }
+interface Override { slug?: string | null; tcgplayerGroup?: number | null; skip?: string; source?: 'tcgdex'; official?: number; total?: number }
 
 async function getJson<T>(url: string): Promise<T> {
 	const res = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': config.userAgent } })
@@ -123,8 +125,12 @@ export async function buildRegistry(opts: { series: string[]; refreshExpansions?
 				if ('slug' in o) entry.slug = o.slug ?? null
 				if ('tcgplayerGroup' in o) entry.tcgplayerGroup = o.tcgplayerGroup ?? null
 				if (o.skip) entry.skip = o.skip
+				if (o.source) entry.source = o.source
+				// TCGdex counts products, not cards, for some sets (My First Battle: 48 products are 34 cards in several printings)
+				if (o.official) entry.official = o.official
+				if (o.total) entry.total = o.total
 			}
-			if (!entry.slug && !entry.skip) entry.skip = 'no pokemon.com expansion found'
+			if (!entry.slug && !entry.skip && !entry.source) entry.skip = 'no pokemon.com expansion found'
 			sets.push(entry)
 		}
 	}

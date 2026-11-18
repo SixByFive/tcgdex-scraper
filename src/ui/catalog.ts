@@ -13,7 +13,7 @@ const REGISTRY_FILE = join(process.cwd(), 'registry', 'pokemon-intl.json')
 
 interface RegistryFile {
 	generatedAt?: string
-	sets: { id: string; series: string; name: string; releaseDate: string | null; official: number | null; total: number | null; slug: string | null; tcgplayerGroup: number | null; skip?: string; notes?: string[] }[]
+	sets: { id: string; series: string; name: string; releaseDate: string | null; official: number | null; total: number | null; slug: string | null; tcgplayerGroup: number | null; skip?: string; source?: 'tcgdex'; notes?: string[] }[]
 }
 
 export type SetState = 'in-experimental' | 'scraped' | 'ready' | 'skipped'
@@ -26,6 +26,8 @@ export interface CatalogSet {
 	total: number | null
 	/** pokemon.com's expansion slug, which is what is scraped */
 	slug: string | null
+	/** "tcgdex": not on pokemon.com, the cards are built from the TCGdex API */
+	source?: 'tcgdex'
 	tcgplayerGroup: number | null
 	/** why the set cannot be scraped */
 	skip?: string
@@ -57,8 +59,8 @@ async function tsCount(dir: string): Promise<number> {
 	try { return (await readdir(dir)).filter((f) => f.endsWith('.ts')).length } catch { return 0 }
 }
 
-const stateOf = (s: Pick<CatalogSet, 'experimental' | 'scraped' | 'slug' | 'skip'>): SetState =>
-	s.experimental !== null ? 'in-experimental' : s.scraped ? 'scraped' : s.skip || !s.slug ? 'skipped' : 'ready'
+const stateOf = (s: Pick<CatalogSet, 'experimental' | 'scraped' | 'slug' | 'skip' | 'source'>): SetState =>
+	s.experimental !== null ? 'in-experimental' : s.scraped ? 'scraped' : s.skip || (!s.slug && !s.source) ? 'skipped' : 'ready'
 
 export async function buildCatalog(repo: string): Promise<Catalog> {
 	let registry: RegistryFile = { sets: [] }
@@ -83,7 +85,7 @@ export async function buildCatalog(repo: string): Promise<Catalog> {
 		if (there) seriesNames.set(there.series, there.seriesName)
 		const set: CatalogSet = {
 			id: r.id, name: r.name, releaseDate: r.releaseDate, official: r.official, total: r.total, slug: r.slug, tcgplayerGroup: r.tcgplayerGroup,
-			skip: r.skip, notes: r.notes ?? [], scraped: await jsonCount(join(config.cacheDir, 'pokemon-com', r.id)),
+			skip: r.skip, source: r.source, notes: r.notes ?? [], scraped: await jsonCount(join(config.cacheDir, 'pokemon-com', r.id)),
 			experimental: there ? there.cards : null, known: true, state: 'ready'
 		}
 		set.state = stateOf(set)
@@ -105,9 +107,9 @@ export async function buildCatalog(repo: string): Promise<Catalog> {
 }
 
 /** A registry set by id: the slug and series a scrape needs, taken from the registry so the page cannot make them up. */
-export async function registrySet(id: string): Promise<{ slug: string; series: string; tcgplayerGroup: number | null } | undefined> {
+export async function registrySet(id: string): Promise<{ slug: string | null; source?: 'tcgdex'; series: string; tcgplayerGroup: number | null } | undefined> {
 	try {
 		const found = (JSON.parse(await readFile(REGISTRY_FILE, 'utf8')) as RegistryFile).sets.find((s) => s.id === id)
-		return found?.slug && !found.skip ? { slug: found.slug, series: found.series, tcgplayerGroup: found.tcgplayerGroup } : undefined
+		return (found?.slug || found?.source) && !found.skip ? { slug: found.slug ?? null, source: found.source, series: found.series, tcgplayerGroup: found.tcgplayerGroup } : undefined
 	} catch { return undefined }
 }

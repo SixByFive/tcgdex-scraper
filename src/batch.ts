@@ -148,7 +148,12 @@ async function buildOne(set: RegistrySet, entry: SetState, o: { repo: string; ap
 	// 1. scrape (skipped when the cache has it)
 	let have = await cachedCount(set.id)
 	const incomplete = await incompleteCards(set.id)
-	if (o.refresh || have === 0 || (expected != null && have < expected) || incomplete > 0) {
+	if (set.source === 'tcgdex') {
+		// pokemon.com doesn't have this set: its cards come from the TCGdex API
+		if (have < (expected ?? 1)) await (await import('./sources/tcgdex-fallback.ts')).fillFromTcgdex(set.id, { log: o.log })
+		have = await cachedCount(set.id)
+		if (have === 0) throw new Error('TCGdex has no cards for this set')
+	} else if (o.refresh || have === 0 || (expected != null && have < expected) || incomplete > 0) {
 		if (incomplete > 0) o.log(`[batch] ${set.id}: ${incomplete} cards have languages to retry`)
 		// pages already fetched come from the cache, so this only asks pokemon.com for the ones that are missing
 		await scrapeSet(set.slug!, { serie: set.series, setId: set.id, enrich: false, count: expected ?? undefined })
@@ -158,11 +163,23 @@ async function buildOne(set: RegistrySet, entry: SetState, o: { repo: string; ap
 	} else o.log(`[batch] ${set.id}: ${have} cards already scraped`)
 	entry.scraped = have
 	if (have === 0) throw new Error('scrape found no cards on pokemon.com')
-	if (expected != null && have < expected) entry.notes.push(`pokemon.com has ${have} of ${expected} cards`)
+	if (expected != null && have < expected) entry.notes.push(`${set.source === 'tcgdex' ? 'TCGdex' : 'pokemon.com and TCGdex have'} ${have} of ${expected} cards`)
 
 	// 2. enrich: variants and provider ids, flavor text, regulation marks, stages
 	await enrichScrapedSet({ setId: set.id, repo: o.repo, tcgplayerSet: set.tcgplayerGroup ?? undefined })
 	entry.enriched = true
+
+	// cross-check against the repo's current card, TCGTracking and PokeData: reported, never changed, never stops the build
+	try {
+		const { crossCheckSet } = await import('./sources/crosscheck.ts')
+		const r = await crossCheckSet(set.id, o.repo, set.tcgplayerGroup ?? undefined, set.name)
+		const real = r.disagreements.filter((d) => !(d.field === 'number' && d.other === 'none'))
+		if (real.length) {
+			entry.notes.push(`cross-check: ${real.length} disagreements (run the Cross-check button or "crosscheck ${set.id}")`)
+			real.slice(0, 3).forEach((d) => o.log(`[batch]   cross-check ${d.card} ${d.field}: ${JSON.stringify(d.scraped)} vs ${JSON.stringify(d.other)} [${d.against}]`))
+		}
+		if (r.pokedata?.missingIds.length) entry.notes.push(`PokeData lists ${r.pokedata.missingIds.length} TCGplayer ids we have no variant for`)
+	} catch (err) { o.log(`[batch] cross-check skipped: ${(err as Error).message}`) }
 
 	// 3 + 4. the set file and the cards. These load the Experimental repo's own formatter, which only runs under Bun, while the
 	// scrape above needs Node (Playwright hangs under Bun): so they run as Bun child processes.

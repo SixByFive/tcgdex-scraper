@@ -29,15 +29,22 @@ export interface TcgdexVariant {
 	stamps?: string[]
 	cardmarket?: number
 	tcgplayer?: number
+	cardtrader?: number
 }
 
-interface TcgdexCard {
+export interface TcgdexCard {
 	name?: string; description?: string | null; regulationMark?: string | null; stage?: string | null; dexId?: number[] | null
-	variants_detailed?: { type?: string; foil?: string; size?: string; stamp?: string[]; thirdParty?: { cardmarket?: number; tcgplayer?: number } }[]
+	variants_detailed?: { type?: string; foil?: string; size?: string; stamp?: string[]; thirdParty?: { cardmarket?: number; tcgplayer?: number; cardtrader?: number } }[]
+	// what a card page carries beyond the extras above (used to build a card TCGdex has and pokemon.com lacks)
+	category?: string; rarity?: string | null; hp?: number | null; types?: string[] | null; image?: string | null; illustrator?: string | null
+	evolveFrom?: string | null; retreat?: number | null; trainerType?: string | null; energyType?: string | null; effect?: string | null
+	attacks?: { cost?: string[]; name?: string; effect?: string | null; damage?: string | number | null }[] | null
+	abilities?: { type?: string; name?: string; effect?: string | null }[] | null
+	weaknesses?: { type: string; value?: string }[] | null; resistances?: { type: string; value?: string }[] | null
 }
 
 /** One card in one language; null when TCGdex doesn't have it. Responses are cached on disk so a re-run costs nothing. */
-async function fetchCard(setId: string, localId: string, lang: string, fresh: boolean): Promise<TcgdexCard | null> {
+export async function fetchCard(setId: string, localId: string, lang: string, fresh: boolean): Promise<TcgdexCard | null> {
 	const file = join(config.cacheDir, 'tcgdex', setId, lang, `${localId}.json`)
 	const cached = existsSync(file) ? (JSON.parse(await readFile(file, 'utf8')) as TcgdexCard) : null
 	if (!fresh && cached) return cached
@@ -91,7 +98,7 @@ export async function fetchCardExtras(setId: string, localIds: string[], warn: (
 				if (card.variants_detailed?.length) extras.variants = card.variants_detailed.filter((v) => v.type).map((v) => ({
 					type: v.type!, foil: v.foil || undefined, size: v.size && v.size !== 'standard' ? v.size : undefined,
 					stamps: v.stamp?.length ? [...v.stamp].sort() : undefined,
-					cardmarket: v.thirdParty?.cardmarket || undefined, tcgplayer: v.thirdParty?.tcgplayer || undefined
+					cardmarket: v.thirdParty?.cardmarket || undefined, tcgplayer: v.thirdParty?.tcgplayer || undefined, cardtrader: v.thirdParty?.cardtrader || undefined
 				})) }
 			const text = card.description?.trim()
 			if (text) extras.description[lang] = text

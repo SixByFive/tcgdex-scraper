@@ -203,7 +203,7 @@ export async function emitExperimental(opts: ExperimentalEmitOptions): Promise<E
 		// Where the data came from. It is the scraper's own reading of three sources, not checked against a card by anyone,
 		// so it is `inferred` (not `verified`).
 		out.provenance = {
-			source: ['pokemon.com', ...(out.variants && out.variants.length > (tcgdex?.variantsAdded ?? 0) + (card.tcgcsvVariants ?? 0) ? ['tcgtracking'] : []), ...(card.tcgcsvVariants ? ['tcgcsv'] : []), ...(usedTcgdex || (tcgdex?.variantsAdded ?? 0) > 0 ? ['tcgdex-api'] : [])].join(' + '),
+			source: [...(card.sourceSlug === 'tcgdex' ? [] : ['pokemon.com']),...(out.variants && out.variants.length > (tcgdex?.variantsAdded ?? 0) + (card.tcgcsvVariants ?? 0) ? ['tcgtracking'] : []), ...(card.tcgcsvVariants ? ['tcgcsv'] : []), ...(usedTcgdex || card.sourceSlug === 'tcgdex' || (tcgdex?.variantsAdded ?? 0) > 0 ? ['tcgdex-api'] : [])].join(' + '),
 			importedAt: today(),
 			validation: 'inferred'
 		}

@@ -35,6 +35,7 @@ export function mergeTcgdexVariants(existing: VariantOut[] | undefined, fromTcgd
 		if (have) {
 			have.prices.cardmarket ??= td.cardmarket
 			have.prices.tcgplayer ??= td.tcgplayer
+			have.prices.cardtrader ??= td.cardtrader
 			const known = have.prices.tcgplayer ? productIds?.get(have.prices.tcgplayer) : undefined
 			if (known?.cardtrader_id) have.prices.cardtrader ??= known.cardtrader_id
 			continue
@@ -49,7 +50,7 @@ export function mergeTcgdexVariants(existing: VariantOut[] | undefined, fromTcgd
 		}
 		// TCGdex gives Cardmarket and TCGplayer ids; the TCGTracking product with that TCGplayer id knows the CardTrader one
 		const product = td.tcgplayer ? productIds?.get(td.tcgplayer) : undefined
-		v.prices = { cardmarket: td.cardmarket ?? product?.cardmarket_id ?? undefined, tcgplayer: td.tcgplayer, cardtrader: product?.cardtrader_id ?? undefined }
+		v.prices = { cardmarket: td.cardmarket ?? product?.cardmarket_id ?? undefined, tcgplayer: td.tcgplayer, cardtrader: td.cardtrader ?? product?.cardtrader_id ?? undefined }
 		list.push(v)
 		added++
 	}

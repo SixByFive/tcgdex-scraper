@@ -123,6 +123,7 @@ async function renderSetGrid(setId) {
 				<input class="search" id="filter" type="search" placeholder="Filter cards…">
 				<button class="btn btn-ghost" data-action="pokedex">Refresh dexIds</button>
 				<button class="btn btn-ghost" data-action="enrich" title="Fetch variants + Cardmarket/TCGplayer/CardTrader ids (TCGTracking) and flavor text + regulation marks (TCGdex) into the scraped cards">Enrich</button>
+				<button class="btn btn-ghost" data-action="crosscheck" title="Compare the scraped cards with the repo, TCGTracking and PokeData and list every disagreement in the log (changes nothing)">Cross-check</button>
 				<a class="btn" href="#/experimental/${encodeURIComponent(setId)}">Build in Experimental →</a>
 				<button class="btn btn-primary" data-action="scrape">Rescrape</button>
 			</div>

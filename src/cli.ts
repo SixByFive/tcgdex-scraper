@@ -23,6 +23,48 @@ scrape
 		process.exit(0)
 	})
 
+scrape
+	.command('tcgdex <setId>')
+	.description("Build the cards of a set pokemon.com doesn't have (or the numbers it skips) from the TCGdex API")
+	.option('--only <numbers>', 'only these card numbers, comma separated (default: every card not scraped yet)')
+	.option('--tcgplayer-set <id>', 'TCGplayer group id', (v) => Number(v))
+	.option('--repo <path>', 'Experimental repo path')
+	.option('--no-enrich', 'do not fetch variants/provider ids after')
+	.action(async (setId, opts) => {
+		const { fillFromTcgdex } = await import('./sources/tcgdex-fallback.ts')
+		await fillFromTcgdex(setId, { only: opts.only ? String(opts.only).split(',').map(Number) : undefined })
+		if (opts.enrich !== false) {
+			const { loadRegistry } = await import('./registry/build.ts')
+			const set = (await loadRegistry()).sets.find((s) => s.id === setId)
+			const { enrichScrapedSet } = await import('./sources/enrich-scraped.ts')
+			await enrichScrapedSet({ setId, repo: opts.repo, tcgplayerSet: opts.tcgplayerSet ?? set?.tcgplayerGroup ?? undefined })
+		}
+		process.exit(0)
+	})
+
+program
+	.command('crosscheck <setIds...>')
+	.description('Compare scraped sets with the repo and TCGTracking and list every disagreement (changes nothing)')
+	.option('--repo <path>', 'Experimental repo path')
+	.action(async (setIds: string[], opts) => {
+		const { loadRegistry } = await import('./registry/build.ts')
+		const { crossCheckSet } = await import('./sources/crosscheck.ts')
+		const { defaultRepo } = await import('./util/experimental.ts')
+		const registry = await loadRegistry()
+		for (const id of setIds) {
+			const set = registry.sets.find((s) => s.id === id)
+			const r = await crossCheckSet(id, opts.repo ?? defaultRepo, set?.tcgplayerGroup ?? undefined, set?.name)
+			console.log(`[crosscheck] ${id}: ${r.checked} cards (${r.tcgdexOnly} from TCGdex alone), ${r.disagreements.length} disagreements`)
+			for (const d of r.disagreements.slice(0, 40)) console.log(`  ${d.card} ${d.field}: scraped ${JSON.stringify(d.scraped)} vs ${JSON.stringify(d.other)} [${d.against}]`)
+			if (r.disagreements.length > 40) console.log(`  ... and ${r.disagreements.length - 40} more`)
+			if (r.pokedata) {
+				console.log(`[crosscheck] ${id}: PokeData has ${r.pokedata.entries} entries; ${r.pokedata.missingIds.length} of its TCGplayer ids are on none of our variants (candidates, not errors)`)
+				for (const d of r.pokedata.missingIds.slice(0, 20)) console.log(`  ${d.card}: ${d.other}`)
+			} else console.log(`[crosscheck] ${id}: no PokeData set found, not compared with it`)
+		}
+		process.exit(0)
+	})
+
 program
 	.command('reparse <setIds...>')
 	.description('Parse the cached pokemon.com pages of scraped sets again (no network) to refresh abilities and retreat costs')

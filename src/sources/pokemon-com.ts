@@ -223,6 +223,15 @@ export async function scrapeSet(slug: string, opts: { serie: string; setId: stri
 	} catch (err) {
 		if (!opts.count) throw new Error(`Could not read ${slug}/${keyFor(1)}: ${(err as Error).message}`)
 	}
+	// a set whose pages print no usable total (SVP prints none) is scraped up to the registry's count, so holes in pokemon.com's numbering can't end it early
+	if (total < 2 && !opts.count) {
+		try {
+			const { loadRegistry } = await import('../registry/build.ts')
+			const s = (await loadRegistry()).sets.find((x) => x.id === opts.setId)
+			const expected = s?.total ?? s?.official
+			if (expected && expected > 1) { opts = { ...opts, count: expected }; console.log(`[pokemon.com] ${slug}: no printed total, using the registry's ${expected}`) }
+		} catch {}
+	}
 	if (!total && !opts.count) console.log('[pokemon.com] no printed total: scraping until pokemon.com runs out of cards')
 	else console.log(`[pokemon.com] total = ${total || opts.count}`)
 
@@ -308,10 +317,18 @@ export async function scrapeSet(slug: string, opts: { serie: string; setId: stri
 		await Promise.all(tasks)
 		if (!limitTo) {
 			const step = config.concurrency ?? 3
-			let n = official + 1, found = 0, stopped: 'missing' | 'error' | null = null
+			// pokemon.com has holes (SVP has no page 31 but has 32 onwards), so one missing page isn't the end of the set:
+			// the end is GAP_END missing pages in a row
+			const GAP_END = 10
+			let n = official + 1, found = 0, missingRun = 0, stopped: 'missing' | 'error' | null = null
 			while (!stopped) {
 				const batch = await Promise.all(Array.from({ length: step }, (_, i) => limit(() => scrapeCard(n + i))))
-				for (const r of batch) { if (stopped) break; if (r === 'ok') found++; else stopped = r }
+				for (const r of batch) {
+					if (stopped) break
+					if (r === 'ok') { found++; missingRun = 0 }
+					else if (r === 'missing') { if (++missingRun >= GAP_END) stopped = 'missing' }
+					else stopped = r
+				}
 				n += step
 			}
 			console.log(`[pokemon.com] ${found} cards beyond the official ${official} (secret rares and so on)`)
@@ -320,6 +337,22 @@ export async function scrapeSet(slug: string, opts: { serie: string; setId: stri
 		console.log(`[pokemon.com] done → ${outDir}`)
 	} finally {
 		await closeBrowser()
+	}
+
+	// numbers pokemon.com has no page for (a hole in its numbering) are filled in from TCGdex when it has the card
+	const expected = opts.count ?? (total > 1 ? total : 0)
+	if (expected > 1) {
+		try {
+			const have = new Set((await readdir(outDir)).filter((f) => f.endsWith('.json')).map((f) => Number(f.replace('.json', ''))))
+			const holes = Array.from({ length: expected }, (_, i) => i + 1).filter((n) => !have.has(n))
+			if (holes.length) {
+				console.log(`[pokemon.com] ${holes.length} of ${expected} cards have no page: looking for them on TCGdex`)
+				const { fillFromTcgdex } = await import('./tcgdex-fallback.ts')
+				await fillFromTcgdex(opts.setId, { only: holes })
+			}
+		} catch (err) {
+			console.warn(`[pokemon.com] could not fill the missing cards from TCGdex: ${(err as Error).message}`)
+		}
 	}
 
     // the Pokédex numbers come from PokeAPI; if it can't be reached the scrape is still good and the enrich below goes on

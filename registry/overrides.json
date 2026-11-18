@@ -22,16 +22,18 @@
 		"tcgplayerGroup": 24837
 	},
 	"mee": {
-		"skip": "Energy set: pokemon.com has no expansion of its own"
+		"source": "tcgdex"
 	},
 	"sve": {
-		"skip": "Energy set: pokemon.com has no expansion of its own"
+		"source": "tcgdex"
 	},
 	"mfb": {
-		"skip": "My First Battle: not on pokemon.com's card database"
+		"source": "tcgdex",
+		"official": 34,
+		"total": 34
 	},
 	"fut2020": {
-		"skip": "Pokémon Futsal 2020: not on pokemon.com's card database"
+		"source": "tcgdex"
 	},
 	"sv03.5": {
 		"tcgplayerGroup": 23237

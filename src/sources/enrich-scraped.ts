@@ -51,6 +51,10 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 	let variants: Awaited<ReturnType<typeof buildVariants>> | undefined
 	let matchByName = false
 	let productIds: ProductIds | undefined
+	// TCGTracking's name for each product, to catch an id another source gives a card that is really another card's product
+	let productNames = new Map<number, string>()
+	let productList: { id: number; name: string; cardmarket_id?: number | null; cardtrader_id?: number | null }[] = []
+	const setNames = new Set(cards.map(({ card }) => nameKey(card.locales.en?.name ?? '')))
 	let cardNameKey: (card: ScrapedCard) => string = (card) => nameKey(card.locales.en?.name ?? '')
 	let groupId = opts.tcgplayerSet
 	if (!opts.noVariants) {
@@ -82,6 +86,8 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 			// every card is matched by name instead.
 			const products = (await fetchCards(groupId)).products
 			productIds = new Map(products.map((p) => [p.id, { cardmarket_id: p.cardmarket_id, cardtrader_id: p.cardtrader_id }]))
+			productNames = new Map(products.map((p) => [p.id, nameKey(p.name)]))
+			productList = products
 			const namesAt = new Map<string, string[]>()
 			for (const p of products) { const k = collectorKey(p.number); if (k !== undefined) namesAt.set(k, [...(namesAt.get(k) ?? []), nameKey(p.name)]) }
 			let checked = 0, disagree = 0
@@ -130,6 +136,7 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 
 	let withVariants = 0, withText = 0, withMark = 0, fromTcgdex = 0, fromTcgcsv = 0, keptEarlier = 0
 	const now = new Date().toISOString()
+	const claimed = { tcgplayer: new Map<number, string>(), cardmarket: new Map<number, string>(), cardtrader: new Map<number, string>() }
 	const schema = await loadSchema(repo)
 	for (const { file, card } of cards) {
 		let e = extras?.get(tcgdexLocalId(card))
@@ -141,6 +148,17 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 		const enName = card.locales.en?.name
 		const sameCard = e && (!e.name || (enName && plain(e.name) === plain(enName)))
 		if (e && sameCard && e.variants?.length && !opts.noTcgdexVariants) {
+			// cross-check against TCGTracking: a TCGdex variant whose TCGplayer product is named like ANOTHER card of this set carries
+			// that card's ids by mistake (TCGdex gave My First Battle's Charmander the Bulbasaur product). The variant stays, its ids go.
+			const mine = nameKey(enName ?? '')
+			e.variants = e.variants.map((tv) => {
+				const owner = tv.tcgplayer ? productNames.get(tv.tcgplayer) : undefined
+				if (owner && owner !== mine && setNames.has(owner)) {
+					warn(`${opts.setId}-${tcgdexLocalId(card)}: TCGdex gives ${enName} TCGplayer product ${tv.tcgplayer}, which TCGTracking names "${owner}" (another card of the set): ids dropped`)
+					return { ...tv, tcgplayer: undefined, cardmarket: undefined, cardtrader: undefined }
+				}
+				return tv
+			})
 			const merged = mergeTcgdexVariants(list, e.variants, schema, warn, `${opts.setId}-${tcgdexLocalId(card)}`, productIds)
 			list = merged.list
 			e.variantsAdded = merged.added
@@ -150,6 +168,38 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 		if (prize) {
 			const r = applyPrizePack(list ?? [], card, prize, schema, warn, `${opts.setId}-${tcgdexLocalId(card)}`)
 			if (r.changed) { list = r.list; csvChanged = r.changed; fromTcgcsv += r.changed }
+		}
+		// a provider id belongs to one card: when two cards claim one (identical cards such as the two Fire Energy of SVE share a
+		// Player Rewards product), the first keeps it and the later one is left without, so nothing is attributed by guesswork
+		for (const v of list ?? []) {
+			for (const key of ['tcgplayer', 'cardmarket', 'cardtrader'] as const) {
+				const id = v.prices[key]
+				if (!id) continue
+				const owner = claimed[key].get(id)
+				if (owner && owner !== file) { warn(`${opts.setId}-${tcgdexLocalId(card)}: ${key} ${id} is already used by another card of the set: left off this card's ${v.type} variant`); delete v.prices[key] }
+				else claimed[key].set(id, file)
+			}
+		}
+		// a variant left without a TCGplayer id (TCGdex's was another card's) takes the TCGTracking product of this card that no card
+		// has claimed: the one whose tag in brackets is one of the variant's stamps ("Switch (Pikachu)" for the pikachu stamp), or the
+		// only unclaimed product with the card's name ("Charmander (Blue Border)")
+		if (productList.length) {
+			const mine = nameKey(card.locales.en?.name ?? '')
+			for (const v of list ?? []) {
+				if (v.prices.tcgplayer) continue
+				const open = productList.filter((p) => nameKey(p.name) === mine && !claimed.tcgplayer.has(p.id))
+				const tagOf = (p: { name: string }) => nameKey(p.name.match(/\(([^)]*)\)/)?.[1] ?? '')
+				const byStamp = open.filter((p) => tagOf(p) && v.stamps?.includes(tagOf(p)))
+				const pick = byStamp.length === 1 ? byStamp[0] : open.length === 1 ? open[0] : undefined
+				if (!pick) continue
+				v.prices.tcgplayer = pick.id
+				if (pick.cardmarket_id && !claimed.cardmarket.has(pick.cardmarket_id)) v.prices.cardmarket = pick.cardmarket_id
+				if (pick.cardtrader_id && !claimed.cardtrader.has(pick.cardtrader_id)) v.prices.cardtrader = pick.cardtrader_id
+				claimed.tcgplayer.set(pick.id, file)
+				if (v.prices.cardmarket) claimed.cardmarket.set(v.prices.cardmarket, file)
+				if (v.prices.cardtrader) claimed.cardtrader.set(v.prices.cardtrader, file)
+				warn(`${opts.setId}-${tcgdexLocalId(card)}: ${v.type} variant (${(v.stamps ?? []).join('+') || 'no stamp'}) had no TCGplayer id; took TCGTracking product ${pick.id} "${pick.name}"`)
+			}
 		}
 		if (csvChanged) card.tcgcsvVariants = csvChanged
 		else delete card.tcgcsvVariants

@@ -189,7 +189,7 @@ function spawnJob(setId: string, kind: string, args: string[]): { running: boole
 	return { running: false, started: true }
 }
 
-async function handleAction(res: ServerResponse, req: IncomingMessage, setId: string, kind: 'scrape' | 'pokedex' | 'emit' | 'enrich'): Promise<void> {
+async function handleAction(res: ServerResponse, req: IncomingMessage, setId: string, kind: 'scrape' | 'pokedex' | 'emit' | 'enrich' | 'crosscheck'): Promise<void> {
 	if (req.method !== 'POST') { res.writeHead(405).end('method not allowed'); return }
 	let args: string[]
 	if (kind === 'scrape') {
@@ -201,6 +201,8 @@ async function handleAction(res: ServerResponse, req: IncomingMessage, setId: st
 		args = ['scrape', 'set', slug, '--serie', serie, '--set', setId, ...(reg?.tcgplayerGroup ? ['--tcgplayer-set', String(reg.tcgplayerGroup)] : [])]
 	} else if (kind === 'pokedex') {
 		args = ['pokedex', setId]
+	} else if (kind === 'crosscheck') {
+		args = ['crosscheck', setId]
 	} else if (kind === 'enrich') {
 		// variants + provider ids (TCGTracking) and flavor text + regulation marks (TCGdex), stored in the scraped cards
 		args = ['enrich-scraped', setId]
@@ -524,15 +526,17 @@ export async function startUi(port = 5173): Promise<void> {
 			const setId = (body.setId ?? '').trim()
 			const set = setId ? await registrySet(setId) : undefined
 			if (!set) return jsonRes(res, { error: `${setId || 'no set'} is not a scrapable set in the registry` }, 400)
-			const args = ['scrape', 'set', set.slug, '--serie', set.series, '--set', setId, ...(body.fresh ? ['--fresh'] : []), ...(set.tcgplayerGroup ? ['--tcgplayer-set', String(set.tcgplayerGroup)] : [])]
+			const args = set.source === 'tcgdex' || !set.slug
+				? ['scrape', 'tcgdex', setId, ...(set.tcgplayerGroup ? ['--tcgplayer-set', String(set.tcgplayerGroup)] : [])]
+				: ['scrape', 'set', set.slug, '--serie', set.series, '--set', setId, ...(body.fresh ? ['--fresh'] : []), ...(set.tcgplayerGroup ? ['--tcgplayer-set', String(set.tcgplayerGroup)] : [])]
 			const result = spawnJob(setId, 'scrape', args)
 			return jsonRes(res, result, result.running ? 409 : 200)
 		}
 
-		const actionMatch = path.match(/^\/api\/sets\/([^/]+)\/(scrape|pokedex|emit|enrich)$/)
+		const actionMatch = path.match(/^\/api\/sets\/([^/]+)\/(scrape|pokedex|emit|enrich|crosscheck)$/)
 		if (actionMatch) {
 			const setId = decodeURIComponent(actionMatch[1]!)
-			return handleAction(res, req, setId, actionMatch[2] as 'scrape' | 'pokedex' | 'emit' | 'enrich')
+			return handleAction(res, req, setId, actionMatch[2] as 'scrape' | 'pokedex' | 'emit' | 'enrich' | 'crosscheck')
 		}
 		const statusMatch = path.match(/^\/api\/sets\/([^/]+)\/status$/)
 		if (statusMatch) {
