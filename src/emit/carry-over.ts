@@ -9,6 +9,7 @@
 const EXTRA_LANGS = ['es-mx'] as const
 
 const plain = (s: unknown) => String(s ?? '').replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/-/g, ' ').replace(/\s+/g, ' ').toLowerCase().trim()
+import { sameCardName } from './names.ts'
 const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v)
 
 /** An array item of the old card that is the same as `item`: same English name, else the same position. */
@@ -23,7 +24,7 @@ function counterpart(item: unknown, index: number, old: unknown[]): unknown {
 
 /** Adds to `out` what `existing` had; returns how many values were carried over. */
 export function carryOver(out: Record<string, any>, existing: unknown): number {
-	if (!isObj(existing) || !isObj(existing.name) || !isObj(out.name) || plain(existing.name.en) !== plain(out.name.en)) return 0
+	if (!isObj(existing) || !isObj(existing.name) || !isObj(out.name) || !sameCardName(existing.name.en, out.name.en)) return 0
 	let carried = 0
 
 	if (Array.isArray(existing.cameoDexIds) && existing.cameoDexIds.length && !out.cameoDexIds) {

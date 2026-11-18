@@ -13,6 +13,7 @@ import { mergeTcgdexVariants, type ProductIds } from '../emit/tcgdex-variants.ts
 import { applyPrizePack, loadPrizePackIndex } from './tcgcsv.ts'
 
 // curly and straight apostrophes/quotes and case differ between sources for the same card
+import { sameCardName } from '../emit/names.ts'
 const plain = (s: string) => s.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/-/g, ' ').replace(/ +/g, ' ').toLowerCase().trim()
 
 export interface EnrichScrapedOptions {
@@ -146,7 +147,7 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 		if (variants) card.tcgplayerSet = groupId
 		// variants TCGdex lists that TCGTracking has no product for (stamps, cosmos/gold patterns, jumbo), only for the same card
 		const enName = card.locales.en?.name
-		const sameCard = e && (!e.name || (enName && plain(e.name) === plain(enName)))
+		const sameCard = e && (!e.name || (enName && sameCardName(e.name, enName)))
 		if (e && sameCard && e.variants?.length && !opts.noTcgdexVariants) {
 			// cross-check against TCGTracking: a TCGdex variant whose TCGplayer product is named like ANOTHER card of this set carries
 			// that card's ids by mistake (TCGdex gave My First Battle's Charmander the Bulbasaur product). The variant stays, its ids go.
