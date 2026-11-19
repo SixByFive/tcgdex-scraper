@@ -198,7 +198,10 @@ program
 	.option('--no-tcgdex', 'skip description and regulationMark')
 	.action(async (setId, opts) => {
 		const { enrichScrapedSet } = await import('./sources/enrich-scraped.ts')
-		await enrichScrapedSet({ setId, repo: opts.repo, tcgplayerSet: opts.tcgplayerSet, noVariants: opts.variants === false, noTcgdex: opts.tcgdex === false })
+		// the registry knows the group (and its overrides); without it only sets already in the repo, or found by name, got one
+		const { loadRegistry } = await import('./registry/build.ts')
+		const set = (await loadRegistry()).sets.find((s) => s.id === setId)
+		await enrichScrapedSet({ setId, repo: opts.repo, tcgplayerSet: opts.tcgplayerSet ?? set?.tcgplayerGroup ?? undefined, noVariants: opts.variants === false, noTcgdex: opts.tcgdex === false })
 	})
 
 const registryCmd = program.command('registry').description('The list of sets to build: id, pokemon.com slug and TCGTracking group for each')
