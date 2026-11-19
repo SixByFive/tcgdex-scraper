@@ -33,7 +33,8 @@ const alphaNumber = (printed: string | null | undefined): string | undefined => 
 /** The card's id inside its set, as TCGdex and the repo write it: "TG01" for a Trainer Gallery card, "005" for card 5. */
 export const cardLocalId = (card: ScrapedCard): string =>
 	// a card built from TCGdex keeps TCGdex's own id form (My First Battle is "1", not "001")
-	(card.sourceSlug === 'tcgdex' ? card.structural.localId : undefined) ?? alphaNumber(card.structural.printedNumber) ??String(card.structural.localId).padStart(3, '0')
+	// (so is one whose pages aren't numbered 1..n: the Classic Collection's "CC001")
+	(card.sourceSlug === 'tcgdex' || /^[A-Za-z]/.test(String(card.structural.localId)) ? card.structural.localId : undefined) ?? alphaNumber(card.structural.printedNumber) ??String(card.structural.localId).padStart(3, '0')
 
 /** The same id without the zero padding of plain numbers, the way the TCGdex API is asked for it. */
 export const tcgdexLocalId = (card: ScrapedCard): string =>

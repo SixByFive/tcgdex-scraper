@@ -32,7 +32,7 @@ export const idOf = (v: Pick<VariantOut, 'type' | 'foil' | 'size' | 'stamps'>) =
  * A variant whose finish, foil or stamp isn't in the schema is left out and reported, not approximated.
  */
 /** A card's name as a lookup key: no tags in brackets, no punctuation ("Genesect-EX" and "Genesect EX (Team Plasma)" agree). */
-export const nameKey = (s: string): string => s.replace(/\s+-\s+[A-Za-z]*\d+(?:\/\d+)?/g, ' ').replace(/\([^)]*\)|\[[^\]]*\]/g, ' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+export const nameKey = (s: string): string => s.replace(/\s+-\s+[A-Za-z]*\d+(?:\/\d+)?/g, ' ').replace(/\([^)]*\)|\[[^\]]*\]/g, ' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/ lv \d+$/, '').trim()
 
 /**
  * `keyOf` says how products are keyed; by default their collector number. A reprint set's products carry the printed numbers of

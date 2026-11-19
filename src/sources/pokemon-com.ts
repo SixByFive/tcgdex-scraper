@@ -87,7 +87,8 @@ function parseAbilityBlock($: cheerio.CheerioAPI, el: any): ScrapedLocaleBlock['
 }
 
 export function parseLocale(html: string): { structural: Partial<ScrapedStructural>; locale: ScrapedLocaleBlock; imageUrl: string | null } {
-	const $ = cheerio.load(html)
+	// pokemon.com puts zero-width spaces in some names ("​Thievul"): invisible, but they make the name differ from every other source's
+	const $ = cheerio.load(html.replace(/[​-‍﻿­]/g, ''))
 	const fci = $('.full-card-information').first()
 
 	const name = fci.find('.card-description h1').first().text().trim() || null
@@ -192,7 +193,7 @@ export async function reparseSet(slug: string, setId: string): Promise<{ cards: 
 	for (const f of (await readdir(dir)).filter((f) => f.endsWith('.json')).sort()) {
 		const file = join(dir, f)
 		const card = JSON.parse(await readFile(file, 'utf8')) as ScrapedCard
-		const n = Number(card.structural.localId)
+		const n = Number(f.replace('.json', ''))
 		const before = JSON.stringify([card.structural.retreat, Object.values(card.locales).map((l) => l?.abilities)])
 		for (const lang of Object.keys(card.locales) as Lang[]) {
 			const html = await readCachedOnly(urlFor(lang, slug, keyFor(n)))
@@ -213,7 +214,12 @@ export async function reparseSet(slug: string, setId: string): Promise<{ cards: 
 export async function scrapeSet(slug: string, opts: { serie: string; setId: string; enrich?: boolean; tcgplayerSet?: number; repo?: string; count?: number }) {
 	const limit = pLimit(config.concurrency ?? 3)
 
-	const keyFor = await keyStyle(slug)
+	// a set whose pages aren't numbered 1..n lists its page keys in the registry (overrides.json: cardKeys, idPrefix)
+	const regSet = await import('../registry/build.ts').then(async (m) => (await m.loadRegistry()).sets.find((x) => x.id === opts.setId)).catch(() => undefined)
+	const cardKeys = regSet?.cardKeys
+	const localIdFor = (n: number) => (cardKeys && regSet?.idPrefix ? regSet.idPrefix + String(n).padStart(3, '0') : String(n))
+	const keyFor = cardKeys ? (n: number) => cardKeys[n - 1] ?? String(n) : await keyStyle(slug)
+	if (cardKeys) { opts = { ...opts, count: cardKeys.length }; console.log(`[pokemon.com] ${slug}: ${cardKeys.length} cards, pages named by the registry's cardKeys`) }
 
 	// the official count: printed on every card ("67/131") but not on gallery cards, so it can also come from --count
 	let total = 0
@@ -266,7 +272,7 @@ export async function scrapeSet(slug: string, opts: { serie: string; setId: stri
 			if (parsed.imageUrl) imageUrls[lang] = parsed.imageUrl
 			if (lang === 'en') {
 				structural = {
-					localId: String(n),
+					localId: localIdFor(n),
                         pokedexSlug: parsed.structural.pokedexSlug ?? null,
                         dexIds: [],
 					number: parsed.structural.number ?? n,

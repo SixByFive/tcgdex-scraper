@@ -33,12 +33,16 @@ export interface RegistrySet {
 	skip?: string
 	/** "tcgdex": pokemon.com doesn't have the set, so its cards are built from the TCGdex API */
 	source?: 'tcgdex'
+	/** pokemon.com's page key for card 1, 2, 3...: for a set whose pages aren't numbered 1..n (Classic Collection: "2_A", "15_A1") */
+	cardKeys?: string[]
+	/** with cardKeys: the id prefix TCGdex gives the cards ("CC" makes card 1 "CC001") */
+	idPrefix?: string
 	notes: string[]
 }
 
 export interface Registry { generatedAt: string; sets: RegistrySet[] }
 
-interface Override { slug?: string | null; tcgplayerGroup?: number | null; skip?: string; source?: 'tcgdex'; official?: number; total?: number }
+interface Override { slug?: string | null; tcgplayerGroup?: number | null; skip?: string; source?: 'tcgdex'; official?: number; total?: number; cardKeys?: string[]; idPrefix?: string }
 
 async function getJson<T>(url: string): Promise<T> {
 	const res = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': config.userAgent } })
@@ -126,6 +130,8 @@ export async function buildRegistry(opts: { series: string[]; refreshExpansions?
 				if ('tcgplayerGroup' in o) entry.tcgplayerGroup = o.tcgplayerGroup ?? null
 				if (o.skip) entry.skip = o.skip
 				if (o.source) entry.source = o.source
+				if (o.cardKeys) entry.cardKeys = o.cardKeys
+				if (o.idPrefix) entry.idPrefix = o.idPrefix
 				// TCGdex counts products, not cards, for some sets (My First Battle: 48 products are 34 cards in several printings)
 				if (o.official) entry.official = o.official
 				if (o.total) entry.total = o.total

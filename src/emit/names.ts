@@ -3,9 +3,11 @@
  * curly and straight apostrophes, hyphens, case; "Basic Grass Energy" vs "Grass Energy"; a tag in brackets ("Professor's Research
  * (Professor Rowan)" is a Professor's Research). Used only to check that a source's card at a number is the scraped card.
  */
-const plain = (s: unknown) => String(s ?? '').replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/-/g, ' ').replace(/\s+/g, ' ').toLowerCase().trim()
+const plain = (s: unknown) => String(s ?? '').replace(/[​-‍﻿­]/g, '').replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/-/g, ' ').replace(/\s+/g, ' ').toLowerCase().trim()
 
 export const looseName = (s: unknown): string =>
-	plain(s).replace(/\s*\([^)]*\)\s*/g, ' ').replace(/^basic /, '').replace(/\s+/g, ' ').trim()
+	plain(s).replace(/\s*\([^)]*\)\s*/g, ' ').replace(/^basic /, '').replace(/\s+lv\.?\s*\d+$/, '')
+		// "Luxray GL LV.X": pokemon.com prints the GL / C symbol as an image and spaces "LV. X" differently; "Umbreon ☆" is "Umbreon" there
+		.replace(/\s+(?:[a-z]{1,2}\s+)?lv\.?\s*x$/, ' lv x').replace(/\s*[☆★]$/, '').replace(/\s+/g, ' ').trim()
 
 export const sameCardName = (a: unknown, b: unknown): boolean => looseName(a) === looseName(b)
