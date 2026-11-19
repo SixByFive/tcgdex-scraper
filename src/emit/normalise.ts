@@ -116,7 +116,9 @@ export function mapRarity(raw: string | null, rarities: readonly string[]): { ra
 	if (!raw) return {}
 	// gallery and vault cards print "Trainer Gallery Holo Rare", "Shiny Vault Rare Holo": the rarity is what follows
 	const bare = raw.trim().replace(/^(trainer gallery|galarian gallery|shiny vault|classic collection)\s+/i, '')
-	const hit = rarities.find((r) => r.toLowerCase() === bare.toLowerCase())
+	// pokemon.com prints "Amazing" / "Radiant" for what the schema calls "Amazing Rare" / "Radiant Rare"
+	const want = [bare, `${bare} Rare`].map((s) => s.toLowerCase())
+	const hit = want.map((w) => rarities.find((r) => r.toLowerCase() === w)).find(Boolean)
 	return hit ? { rarity: hit } : { warning: `unmapped rarity "${raw}"` }
 }
 

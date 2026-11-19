@@ -54,7 +54,7 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 	let productIds: ProductIds | undefined
 	// TCGTracking's name for each product, to catch an id another source gives a card that is really another card's product
 	let productNames = new Map<number, string>()
-	let productList: { id: number; name: string; cardmarket_id?: number | null; cardtrader_id?: number | null }[] = []
+	let productList: { id: number; name: string; number?: string | null; cardmarket_id?: number | null; cardtrader_id?: number | null }[] = []
 	const setNames = new Set(cards.map(({ card }) => nameKey(card.locales.en?.name ?? '')))
 	let cardNameKey: (card: ScrapedCard) => string = (card) => nameKey(card.locales.en?.name ?? '')
 	let groupId = opts.tcgplayerSet
@@ -176,6 +176,12 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 			for (const key of ['tcgplayer', 'cardmarket', 'cardtrader'] as const) {
 				const id = v.prices[key]
 				if (!id) continue
+				// a TCGplayer product numbered for another card of the set is that card's: this card doesn't claim it (not for sets
+				// matched by name, whose products carry the numbers of other sets)
+				if (key === 'tcgplayer' && !matchByName) {
+					const num = collectorKey(productList.find((p) => p.id === id)?.number)
+					if (num !== undefined && num !== cardKey(card)) { warn(`${opts.setId}-${tcgdexLocalId(card)}: tcgplayer ${id} is product ${num}'s, not this card's: left off its ${v.type} variant`); delete v.prices[key]; continue }
+				}
 				const owner = claimed[key].get(id)
 				if (owner && owner !== file) { warn(`${opts.setId}-${tcgdexLocalId(card)}: ${key} ${id} is already used by another card of the set: left off this card's ${v.type} variant`); delete v.prices[key] }
 				else claimed[key].set(id, file)
@@ -188,7 +194,10 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 			const mine = nameKey(card.locales.en?.name ?? '')
 			for (const v of list ?? []) {
 				if (v.prices.tcgplayer) continue
-				const open = productList.filter((p) => nameKey(p.name) === mine && !claimed.tcgplayer.has(p.id))
+				// a product numbered for another card is that card's ("Turbo Patch (Secret)" 200/189 is not card 172's); only products with
+				// no number (My First Battle's) or this card's number can be taken
+				const open = productList.filter((p) => nameKey(p.name) === mine && !claimed.tcgplayer.has(p.id)
+					&& (collectorKey(p.number) === undefined || collectorKey(p.number) === cardKey(card)))
 				const tagOf = (p: { name: string }) => nameKey(p.name.match(/\(([^)]*)\)/)?.[1] ?? '')
 				const byStamp = open.filter((p) => tagOf(p) && v.stamps?.includes(tagOf(p)))
 				const pick = byStamp.length === 1 ? byStamp[0] : open.length === 1 ? open[0] : undefined
