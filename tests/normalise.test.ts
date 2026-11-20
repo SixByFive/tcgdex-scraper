@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { cardKey, cardLocalId, collectorKey, tcgdexLocalId } from '../src/emit/normalise.ts'
+import { cardKey, cardLocalId, collectorKey, mapRarity, tcgdexLocalId } from '../src/emit/normalise.ts'
 import { blockingProblems } from '../src/sources/enrich-scraped.ts'
 import type { ScrapedCard } from '../src/types/scraped.ts'
 
@@ -11,7 +11,11 @@ describe('card ids', () => {
 	test('a numbered card is padded: "5" -> 005', () => expect(cardLocalId(card({ localId: '5', number: 5 }))).toBe('005'))
 	test('a gallery card keeps its letters', () => expect(cardLocalId(card({ localId: '24', printed: 'TG24', number: 24 }))).toBe('TG24'))
 	test('promo ids keep their prefix', () => expect(cardLocalId(card({ localId: '61', printed: 'SWSH061', number: 61 }))).toBe('SWSH061'))
-	test('a TCGdex-built card keeps TCGdex’s id (My First Battle is "1")', () => expect(cardLocalId(card({ slug: 'tcgdex', localId: '1' }))).toBe('1'))
+	test('a TCGdex-built card is padded like any other: "1" -> 001 (McDonald’s, trainer kits, POP)', () => expect(cardLocalId(card({ slug: 'tcgdex', localId: '1' }))).toBe('001'))
+	test('a TCGdex-built card keeps TCGdex’s id in a set the registry says so for (My First Battle is "1")', () => expect(cardLocalId(card({ slug: 'tcgdex', localId: '1' }), true)).toBe('1'))
+	test('a set the registry gives plain ids drops the printed prefix: Hidden Fates Shiny Vault "SV1" -> 001', () => expect(cardLocalId(card({ localId: '1', printed: 'SV1', number: 1 }), false, true)).toBe('001'))
+	test('without that, the printed prefix stays: "SV1"', () => expect(cardLocalId(card({ localId: '1', printed: 'SV1', number: 1 }))).toBe('SV1'))
+	test('an already padded TCGdex id stays (Scarlet & Violet Energy "001")', () => expect(cardLocalId(card({ slug: 'tcgdex', localId: '001' }))).toBe('001'))
 	test('a Classic Collection card is CC001, not 001', () => expect(cardLocalId(card({ localId: 'CC001', number: 1 }))).toBe('CC001'))
 	test('an id of only letters is kept (mep "Museum")', () => expect(cardLocalId(card({ slug: 'tcgdex', localId: 'Museum', number: 0 }))).toBe('Museum'))
 	test('TCGdex is asked for the unpadded number', () => expect(tcgdexLocalId(card({ localId: '5', number: 5 }))).toBe('5'))
@@ -35,4 +39,23 @@ describe('what stops a set being written', () => {
 	test('no TCGplayer group blocks when the registry has one', () => expect(blockingProblems(['no TCGplayer group found: no variants or provider ids'], true).length).toBe(1))
 	test('no TCGplayer group does not block a set the registry has none for', () => expect(blockingProblems(['no TCGplayer group found: no variants or provider ids'], false)).toEqual([]))
 	test('nothing wrong blocks nothing', () => expect(blockingProblems([], true)).toEqual([]))
+})
+
+import { stageAfter } from '../src/emit/evolution.ts'
+describe('GX cards: rarity and stage', () => {
+	const schema = ['Ultra Rare', 'Rare Holo', 'Holo Rare V', 'Holo Rare VMAX', 'Holo Rare VSTAR', 'Rare', 'Rainbow Rare']
+	test('pokemon.com\'s "Rare Holo GX" is an Ultra Rare', () => {
+		expect(mapRarity('Rare Holo GX', schema)).toEqual({ rarity: 'Ultra Rare' })
+		expect(mapRarity('Rare Holo EX', schema)).toEqual({ rarity: 'Ultra Rare' })
+		expect(mapRarity('Rare Holo VMAX', schema)).toEqual({ rarity: 'Holo Rare VMAX' })
+		expect(mapRarity('Rare Holo', schema)).toEqual({ rarity: 'Rare Holo' })
+		expect(mapRarity('Rare Holo Mystery', schema)).toEqual({ warning: 'unmapped rarity "Rare Holo Mystery"' })
+	})
+
+	test('the stage of an evolving card follows from what it evolves from', () => {
+		expect(stageAfter('Basic')).toBe('Stage1')
+		expect(stageAfter('Stage1')).toBe('Stage2')
+		expect(stageAfter('Stage2')).toBeUndefined()
+		expect(stageAfter(undefined)).toBeUndefined()
+	})
 })

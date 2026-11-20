@@ -2,6 +2,7 @@ import { mkdir, readdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import config from '../../config.json' with { type: 'json' }
 import type { EnergyTypes, Lang, ScrapedCard, ScrapedLocaleBlock, ScrapedStructural } from '../types/scraped.ts'
+import { tcgdexSetId } from '../util/tcgdex-id.ts'
 import { fetchCard, type TcgdexCard } from './tcgdex-cards.ts'
 
 /**
@@ -18,7 +19,7 @@ const cost = (list: string[] | undefined | null): EnergyTypes[] => (list ?? []).
 
 /** Every card id TCGdex lists for a set: [{ localId: "031" }, ...]. */
 export async function listTcgdexCards(setId: string): Promise<{ localId: string }[]> {
-	const res = await fetch(`${TCGDEX}/en/sets/${setId}`, { headers: { Accept: 'application/json', 'User-Agent': config.userAgent }, signal: AbortSignal.timeout(20000) })
+	const res = await fetch(`${TCGDEX}/en/sets/${tcgdexSetId(setId)}`, { headers: { Accept: 'application/json', 'User-Agent': config.userAgent }, signal: AbortSignal.timeout(20000) })
 	if (!res.ok) throw new Error(`TCGdex set ${setId} -> ${res.status}`)
 	const body = (await res.json()) as { cards?: { localId: string }[] }
 	return body.cards ?? []
@@ -31,6 +32,64 @@ function localeBlock(card: TcgdexCard): ScrapedLocaleBlock {
 	// a Trainer's (or Energy's) rules text is one "rule" block, as pokemon.com has it
 	if (card.effect && card.category !== 'Pokemon') blocks.push({ kind: 'rule', cost: [], name: null, damage: null, effect: card.effect })
 	return { name: card.name?.trim() ?? null, evolvesFromName: card.evolveFrom ?? null, abilities: blocks }
+}
+
+/**
+ * One card of TCGdex as a scraped card, or null when TCGdex has no English card for it. `setId`/`localId` say where it is fetched
+ * from; `structuralId` and `printedNumber` what the scraped card is called (they differ for a reprint, which is another set's
+ * card under a number of its own); `total` overrides the set's official count.
+ */
+async function buildFromTcgdex(o: { setId: string; localId: string; n: number; alphaOnly: boolean; structuralId: string; printedNumber: string | null; total?: number }, log: (m: string) => void): Promise<ScrapedCard | null> {
+	const { setId, localId, n, alphaOnly } = o
+	const blocks: Partial<Record<Lang, ScrapedLocaleBlock>> = {}
+	const imageUrls: Partial<Record<Lang, string>> = {}
+	const absentLangs: Lang[] = []
+	const failedLangs: Lang[] = []
+	let en: TcgdexCard | null = null
+	for (const lang of LANGS) {
+		let card: TcgdexCard | null = null
+		try {
+			for (const form of [...new Set(alphaOnly ? [localId] : [localId, localId.padStart(3, '0'), String(n)])]) { card = await fetchCard(setId, form, lang, false); if (card) break }
+		} catch (err) {
+			failedLangs.push(lang)
+			log(`[tcgdex] ${setId}/${localId} ${lang}: ${(err as Error).message}`)
+			continue
+		}
+		if (!card) { absentLangs.push(lang); continue }
+		blocks[lang] = localeBlock(card)
+		if (card.image) imageUrls[lang] = card.image
+		if (lang === 'en') en = card
+	}
+	if (!en) return null
+
+	const category = en.category === 'Trainer' || en.category === 'Energy' ? en.category : 'Pokemon'
+	const raw = en.rarity?.trim()
+	const structural: ScrapedStructural = {
+		// the id as TCGdex writes it ("1" in My First Battle, "031" in SVP): it is also the repo's file name and card id
+		localId: o.structuralId,
+		number: n,
+		// a lettered id is also the number printed on the card, and how TCGTracking numbers its product
+		printedNumber: o.printedNumber,
+		total: o.total ?? (Number((en as { set?: { cardCount?: { official?: number } } }).set?.cardCount?.official) || 0),
+		rarity: raw && raw.toLowerCase() !== 'none' ? raw : null,
+		hp: en.hp ?? null,
+		types: cost(en.types),
+		// the stage the way pokemon.com words it is what normalise maps from: "Stage1", "Basic", ...
+		stage: category === 'Pokemon' ? en.stage ?? null : null,
+		category,
+		trainerSubtype: category === 'Trainer' ? en.trainerType ?? null : category === 'Energy' ? en.energyType ?? null : null,
+		evolvesFromKey: en.evolveFrom ?? null,
+		pokedexSlug: null,
+		dexIds: en.dexId ?? [],
+		retreat: en.retreat ?? null,
+		weaknesses: (en.weaknesses ?? []).map((w) => ({ type: w.type as EnergyTypes, value: w.value ?? '' })),
+		resistances: (en.resistances ?? []).map((w) => ({ type: w.type as EnergyTypes, value: w.value ?? '' })),
+		illustrator: en.illustrator ?? null,
+		expansionSetCode: null,
+		imageUrls
+	}
+	const scraped: ScrapedCard = { scrapedAt: new Date().toISOString(), sourceSlug: 'tcgdex', structural, locales: blocks, absentLangs, failedLangs }
+	return scraped
 }
 
 /**
@@ -59,58 +118,38 @@ export async function fillFromTcgdex(setId: string, opts: { only?: number[]; log
 		const fileName = alphaOnly ? localId : String(n).padStart(3, '0')
 		if (haveFiles.has(fileName) || (wanted && (alphaOnly || !wanted.has(n)))) continue
 
-		const blocks: Partial<Record<Lang, ScrapedLocaleBlock>> = {}
-		const imageUrls: Partial<Record<Lang, string>> = {}
-		const absentLangs: Lang[] = []
-		const failedLangs: Lang[] = []
-		let en: TcgdexCard | null = null
-		for (const lang of LANGS) {
-			let card: TcgdexCard | null = null
-			try {
-				for (const form of [...new Set(alphaOnly ? [localId] : [localId, localId.padStart(3, '0'), String(n)])]) { card = await fetchCard(setId, form, lang, false); if (card) break }
-			} catch (err) {
-				failedLangs.push(lang)
-				log(`[tcgdex] ${setId}/${localId} ${lang}: ${(err as Error).message}`)
-				continue
-			}
-			if (!card) { absentLangs.push(lang); continue }
-			blocks[lang] = localeBlock(card)
-			if (card.image) imageUrls[lang] = card.image
-			if (lang === 'en') en = card
-		}
-		if (!en) { notOnTcgdex.push(n); continue }
-
-		const category = en.category === 'Trainer' || en.category === 'Energy' ? en.category : 'Pokemon'
-		const raw = en.rarity?.trim()
-		const structural: ScrapedStructural = {
-			// the id as TCGdex writes it ("1" in My First Battle, "031" in SVP): it is also the repo's file name and card id
-			localId,
-			number: n,
-			// a lettered id is also the number printed on the card, and how TCGTracking numbers its product
-			printedNumber: /^[A-Za-z]/.test(localId) ? localId : null,
-			total: Number((en as { set?: { cardCount?: { official?: number } } }).set?.cardCount?.official) || 0,
-			rarity: raw && raw.toLowerCase() !== 'none' ? raw : null,
-			hp: en.hp ?? null,
-			types: cost(en.types),
-			// the stage the way pokemon.com words it is what normalise maps from: "Stage1", "Basic", ...
-			stage: category === 'Pokemon' ? en.stage ?? null : null,
-			category,
-			trainerSubtype: category === 'Trainer' ? en.trainerType ?? null : category === 'Energy' ? en.energyType ?? null : null,
-			evolvesFromKey: en.evolveFrom ?? null,
-			pokedexSlug: null,
-			dexIds: en.dexId ?? [],
-			retreat: en.retreat ?? null,
-			weaknesses: (en.weaknesses ?? []).map((w) => ({ type: w.type as EnergyTypes, value: w.value ?? '' })),
-			resistances: (en.resistances ?? []).map((w) => ({ type: w.type as EnergyTypes, value: w.value ?? '' })),
-			illustrator: en.illustrator ?? null,
-			expansionSetCode: null,
-			imageUrls
-		}
-		const scraped: ScrapedCard = { scrapedAt: new Date().toISOString(), sourceSlug: 'tcgdex', structural, locales: blocks, absentLangs, failedLangs }
+		const scraped = await buildFromTcgdex({ setId, localId, n, alphaOnly, structuralId: localId, printedNumber: /^[A-Za-z]/.test(localId) ? localId : null }, log)
+		if (!scraped) { notOnTcgdex.push(n); continue }
 		await writeFile(join(dir, `${fileName}.json`), JSON.stringify(scraped, null, 2))
 		written.push(n)
 	}
 	if (skipped.length) log(`[tcgdex] ${setId}: ${skipped.length} cards with lettered ids not handled (${skipped.slice(0, 5).join(', ')})`)
 	log(`[tcgdex] ${setId}: wrote ${written.length} cards${notOnTcgdex.length ? `; TCGdex has no card ${notOnTcgdex.join(', ')}` : ''}`)
 	return { written, notOnTcgdex, skipped }
+}
+
+/**
+ * Builds a set whose cards are reprints of other sets' cards (W Promotional: seven cards of the Jungle, Fossil, ... sets with a gold
+ * "W" stamp). Card n takes its data from `reprints[n-1]` on TCGdex; the stamp makes the variant. A card already in the cache is left.
+ */
+export async function fillFromReprints(setId: string, reprints: { set: string; localId: string; stamps?: string[] }[], opts: { total?: number; log?: (m: string) => void } = {}): Promise<number[]> {
+	const log = opts.log ?? console.log
+	const dir = join(config.cacheDir, 'pokemon-com', setId)
+	await mkdir(dir, { recursive: true })
+	const have = new Set((await readdir(dir)).filter((f) => f.endsWith('.json')))
+	const written: number[] = []
+	for (const [i, r] of reprints.entries()) {
+		const n = i + 1
+		const file = `${String(n).padStart(3, '0')}.json`
+		if (have.has(file)) continue
+		const card = await buildFromTcgdex({ setId: r.set, localId: r.localId, n, alphaOnly: false, structuralId: String(n), printedNumber: null, total: opts.total ?? reprints.length }, log)
+		if (!card) { log(`[tcgdex] ${setId} ${n}: TCGdex has no ${r.set}-${r.localId}`); continue }
+		// the parent card's own printing data is not this card's: it is the parent with the promo's stamp
+		card.variants = [{ type: 'normal', stamps: r.stamps?.length ? [...r.stamps].sort() : undefined, prices: {} }]
+		card.structural.rarity = null
+		await writeFile(join(dir, file), JSON.stringify(card, null, 2))
+		written.push(n)
+	}
+	log(`[tcgdex] ${setId}: wrote ${written.length} reprint cards`)
+	return written
 }

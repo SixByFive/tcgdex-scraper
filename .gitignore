@@ -41,3 +41,4 @@ review/
 *.log
 .env
 /var
+/research_notes

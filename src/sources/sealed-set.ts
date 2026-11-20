@@ -6,6 +6,7 @@ import { loadSealedCatalogue } from './cardmarket-sealed.ts'
 import { buildProducts, productSource, variantKeyOf, type BuildResult, type ProductFile, type Tracked } from './sealed.ts'
 import { loadPromoCards } from './sealed-promos.ts'
 import { fetchGroup } from './tcgcsv.ts'
+import { galleryCount, loadGallery, pagesForSet } from './pokemon-gallery.ts'
 
 /**
  * One set's sealed products end to end, for the CLI and the UI: the registry says which TCGplayer group and Cardmarket expansion the
@@ -18,6 +19,7 @@ const SEALED_TTL_MS = 12 * 3600 * 1000
 const PROMO_SET_FOR_SERIES: Record<string, string> = { sv: 'svp', swsh: 'swshp', me: 'mep' }
 
 export interface RegistrySetLite { id: string; series: string; name: string; releaseDate?: string; tcgplayerGroup?: number }
+export { galleryCount }
 export const registrySets = async (): Promise<RegistrySetLite[]> => {
 	const r = JSON.parse(await readFile(REGISTRY, 'utf8'))
 	return r.sets ?? r
@@ -29,6 +31,7 @@ export type ProductFix =
 	| { set: string; product: string; op: 'type'; value: string; why?: string }
 	| { set: string; product: string; op: 'name'; value: string; why?: string }
 	| { set: string; product: string; op: 'contents'; value: Record<string, unknown>; why?: string }
+	| { set: string; product: string; op: 'variantContents'; variant: string; value: Record<string, unknown>; why?: string }
 	| { set: string; product: string; op: 'price'; variant: string; provider: 'tcgplayer' | 'cardmarket' | 'cardtrader'; value: number | null; why?: string }
 
 export async function loadFixes(): Promise<ProductFix[]> {
@@ -40,7 +43,7 @@ export async function saveFixes(fixes: ProductFix[]): Promise<void> {
 }
 /** The same correction replaces the earlier one for the same product (and variant and provider). */
 export const sameFix = (a: ProductFix, b: ProductFix): boolean =>
-	a.set === b.set && a.product === b.product && a.op === b.op && (a.op !== 'price' || (b.op === 'price' && a.variant === b.variant && a.provider === b.provider))
+	a.set === b.set && a.product === b.product && a.op === b.op && (a.op === 'variantContents' ? b.op === 'variantContents' && a.variant === b.variant : a.op !== 'price' || (b.op === 'price' && a.variant === b.variant && a.provider === b.provider))
 
 export const variantKey = variantKeyOf
 
@@ -49,6 +52,12 @@ export function applyFixes(files: ProductFile[], fixes: ProductFix[]): { files: 
 	const note = (id: string, s: string) => (applied[id] ??= []).push(s)
 	const gone = new Set<string>()
 	const out = files.map((f) => structuredClone(f))
+	const keyed = new Map<string, Map<string, Record<string, unknown>>>()
+	const built = (p: ProductFile): Map<string, Record<string, unknown>> => {
+		let m = keyed.get(p.id)
+		if (!m) { m = new Map(p.variants.map((v) => [variantKey(v), v])); keyed.set(p.id, m) }
+		return m
+	}
 	for (const fix of fixes) {
 		const p = out.find((x) => x.id === fix.product)
 		if (!p) continue
@@ -56,8 +65,14 @@ export function applyFixes(files: ProductFile[], fixes: ProductFix[]): { files: 
 		else if (fix.op === 'type') { p.type = fix.value; note(p.id, `type ${fix.value}`) }
 		else if (fix.op === 'name') { p.name = { en: fix.value }; note(p.id, 'name') }
 		else if (fix.op === 'contents') { p.contents = fix.value as ProductFile['contents']; if (!p.contents || !Object.keys(p.contents).length) delete p.contents; note(p.id, 'contents') }
+		else if (fix.op === 'variantContents') {
+			const v = built(p).get(fix.variant) as { contents?: unknown } | undefined
+			if (!v) continue
+			if (Object.keys(fix.value ?? {}).length) v.contents = fix.value; else delete v.contents
+			note(p.id, `contents of ${fix.variant}`)
+		}
 		else if (fix.op === 'price') {
-			const v = p.variants.find((x) => variantKey(x) === fix.variant) as { prices?: Record<string, number> } | undefined
+			const v = built(p).get(fix.variant) as { prices?: Record<string, number> } | undefined
 			if (!v) continue
 			v.prices ??= {}
 			if (fix.value === null) delete v.prices[fix.provider]; else v.prices[fix.provider] = fix.value
@@ -94,6 +109,8 @@ async function sealedFor(group: number, refresh: boolean): Promise<{ set_release
 }
 
 export interface SetProducts extends Omit<BuildResult, 'files'> {
+	/** gallery pages that belong to this set but matched no product: [slug, title] */
+	galleryUnused: [string, string][]
 	set: RegistrySetLite
 	/** what the scraper built, before any correction */
 	built: ProductFile[]
@@ -129,14 +146,15 @@ export async function buildSet(setId: string, opts: { refresh?: boolean; repo?: 
 		} catch { /* the page then shows products without a description */ }
 	}
 	const tracked = sealed.products.filter((p) => !p.number && !/^code card/i.test(p.name))
-	const built = buildProducts(setId, set.name, sealed.set_released ?? undefined, tracked, cm, promoSet ? await loadPromoCards([promoSet]) : [])
+	const built = buildProducts(setId, set.name, sealed.set_released ?? undefined, tracked, cm, promoSet ? await loadPromoCards([promoSet]) : [], pagesForSet(set.name, sealed.set_released ?? undefined, await loadGallery(), (await registrySets()).map((x) => x.name)))
 	const fixes = (await loadFixes()).filter((f) => f.set === setId)
 	const { files, applied } = applyFixes(built.files, fixes)
 	const folder = join(intlDir(repo), 'products', fileSafe(set.name))
 	let inRepo: string[] = []
 	try { inRepo = (await readdir(folder)).filter((f) => f.endsWith('.ts')).map((f) => f.slice(0, -3)) } catch {}
 	const { files: builtFiles, ...rest } = built
-	return { ...rest, set, built: builtFiles, files, applied, fixes, fetchedAt: sealed.fetchedAt, folder, inRepo }
+	const galleryUnused = pagesForSet(set.name, sealed.set_released ?? undefined, await loadGallery(), (await registrySets()).map((x) => x.name)).filter((p) => !built.galleryUsed.includes(p.slug)).map((p): [string, string] => [p.slug, p.title])
+	return { ...rest, galleryUnused, set, built: builtFiles, files, applied, fixes, fetchedAt: sealed.fetchedAt, folder, inRepo }
 }
 
 /** Writes the set's products (corrections applied) into the Experimental repo; returns what was written. */

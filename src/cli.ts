@@ -23,24 +23,35 @@ scrape
 		process.exit(0)
 	})
 
+const scrapeNotOnPokemonCom = async (setId: string, opts: { only?: string; tcgplayerSet?: number; repo?: string; enrich?: boolean }) => {
+	const { loadRegistry } = await import('./registry/build.ts')
+	const set = (await loadRegistry()).sets.find((s) => s.id === setId)
+	if (opts.only || !set) {
+		const { fillFromTcgdex } = await import('./sources/tcgdex-fallback.ts')
+		await fillFromTcgdex(setId, { only: opts.only ? String(opts.only).split(',').map(Number) : undefined })
+	} else await (await import('./sources/tcgcsv-cards.ts')).fillRegistrySet(set)
+	if (opts.enrich !== false) {
+		const { enrichScrapedSet } = await import('./sources/enrich-scraped.ts')
+		await enrichScrapedSet({ setId, repo: opts.repo, tcgplayerSet: opts.tcgplayerSet ?? set?.tcgplayerGroup ?? undefined })
+	}
+	process.exit(0)
+}
+scrape
+	.command('tcgcsv <setId>')
+	.description("Build the cards of a set neither pokemon.com nor TCGdex has (Radiant Collection) from TCGplayer's catalogue (TCGCSV)")
+	.option('--tcgplayer-set <id>', 'TCGplayer group id', (v) => Number(v))
+	.option('--repo <path>', 'Experimental repo path')
+	.option('--no-enrich', 'do not fetch variants/provider ids after')
+	.action((setId, opts) => scrapeNotOnPokemonCom(setId, opts))
+
 scrape
 	.command('tcgdex <setId>')
-	.description("Build the cards of a set pokemon.com doesn't have (or the numbers it skips) from the TCGdex API")
+	.description("Build the cards of a set pokemon.com doesn't have (or the numbers it skips) from the TCGdex API, topped up from TCGCSV where the registry says so")
 	.option('--only <numbers>', 'only these card numbers, comma separated (default: every card not scraped yet)')
 	.option('--tcgplayer-set <id>', 'TCGplayer group id', (v) => Number(v))
 	.option('--repo <path>', 'Experimental repo path')
 	.option('--no-enrich', 'do not fetch variants/provider ids after')
-	.action(async (setId, opts) => {
-		const { fillFromTcgdex } = await import('./sources/tcgdex-fallback.ts')
-		await fillFromTcgdex(setId, { only: opts.only ? String(opts.only).split(',').map(Number) : undefined })
-		if (opts.enrich !== false) {
-			const { loadRegistry } = await import('./registry/build.ts')
-			const set = (await loadRegistry()).sets.find((s) => s.id === setId)
-			const { enrichScrapedSet } = await import('./sources/enrich-scraped.ts')
-			await enrichScrapedSet({ setId, repo: opts.repo, tcgplayerSet: opts.tcgplayerSet ?? set?.tcgplayerGroup ?? undefined })
-		}
-		process.exit(0)
-	})
+	.action((setId, opts) => scrapeNotOnPokemonCom(setId, opts))
 
 program
 	.command('crosscheck <setIds...>')
@@ -243,6 +254,19 @@ program
 			from: opts.from, apply: Boolean(opts.apply), overwrite: Boolean(opts.overwrite), refresh: Boolean(opts.refresh), plan: Boolean(opts.plan), allowIncomplete: Boolean(opts.allowIncomplete)
 		})
 		process.exit(0)
+	})
+
+const gallery = program.command('gallery').description("Pokémon.com's official product gallery: what is inside each sealed product")
+gallery
+	.command('scrape')
+	.description('Download the product pages (a visible browser opens, like the card scrape) into cache/pokemon-gallery. Pages already kept are skipped')
+	.option('--years <years>', 'comma-separated years (default: 2020 to now)')
+	.option('--refresh', 'download the pages again', false)
+	.action(async (opts) => {
+		const { scrapeGallery } = await import('./sources/pokemon-gallery.ts')
+		const years = opts.years ? String(opts.years).split(',').map((y: string) => Number(y.trim())).filter(Boolean) : undefined
+		const r = await scrapeGallery({ years, refresh: Boolean(opts.refresh) })
+		process.exit(r.failed.length ? 1 : 0)
 	})
 
 program

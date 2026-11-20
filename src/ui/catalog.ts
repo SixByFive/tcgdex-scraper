@@ -13,7 +13,7 @@ const REGISTRY_FILE = join(process.cwd(), 'registry', 'pokemon-intl.json')
 
 interface RegistryFile {
 	generatedAt?: string
-	sets: { id: string; series: string; name: string; releaseDate: string | null; official: number | null; total: number | null; slug: string | null; tcgplayerGroup: number | null; skip?: string; source?: 'tcgdex'; notes?: string[] }[]
+	sets: { id: string; series: string; name: string; releaseDate: string | null; official: number | null; total: number | null; slug: string | null; tcgplayerGroup: number | null; skip?: string; source?: 'tcgdex' | 'tcgcsv'; notes?: string[] }[]
 }
 
 export type SetState = 'in-experimental' | 'scraped' | 'ready' | 'skipped'
@@ -26,8 +26,8 @@ export interface CatalogSet {
 	total: number | null
 	/** pokemon.com's expansion slug, which is what is scraped */
 	slug: string | null
-	/** "tcgdex": not on pokemon.com, the cards are built from the TCGdex API */
-	source?: 'tcgdex'
+	/** not on pokemon.com: "tcgdex" builds the cards from the TCGdex API, "tcgcsv" from TCGplayer's catalogue (TCGCSV) */
+	source?: 'tcgdex' | 'tcgcsv'
 	tcgplayerGroup: number | null
 	/** why the set cannot be scraped */
 	skip?: string
@@ -74,7 +74,11 @@ export async function buildCatalog(repo: string): Promise<Catalog> {
 		} catch { /* a data file that does not load: show what is known */ }
 	}
 
-	const seriesNames = new Map<string, string>()
+	// TCGdex's names for the series the repo does not have yet, so older eras are not headed by their bare ids
+	const seriesNames = new Map<string, string>(Object.entries({
+		me: 'Mega Evolution', sv: 'Scarlet & Violet', swsh: 'Sword & Shield', sm: 'Sun & Moon', xy: 'XY', bw: 'Black & White', col: 'Call of Legends', hgss: 'HeartGold & SoulSilver',
+		pl: 'Platinum', dp: 'Diamond & Pearl', pop: 'POP', ex: 'EX', ecard: 'E-Card', lc: 'Legendary Collection', neo: 'Neo', gym: 'Gym', base: 'Base', tk: 'Trainer kits', mc: "McDonald's Collection", misc: 'Miscellaneous'
+	}))
 	const bySeries = new Map<string, CatalogSet[]>()
 	const add = (series: string, set: CatalogSet) => { bySeries.set(series, [...(bySeries.get(series) ?? []), set]) }
 	const seen = new Set<string>()
@@ -107,7 +111,7 @@ export async function buildCatalog(repo: string): Promise<Catalog> {
 }
 
 /** A registry set by id: the slug and series a scrape needs, taken from the registry so the page cannot make them up. */
-export async function registrySet(id: string): Promise<{ slug: string | null; source?: 'tcgdex'; series: string; tcgplayerGroup: number | null } | undefined> {
+export async function registrySet(id: string): Promise<{ slug: string | null; source?: 'tcgdex' | 'tcgcsv'; series: string; tcgplayerGroup: number | null } | undefined> {
 	try {
 		const found = (JSON.parse(await readFile(REGISTRY_FILE, 'utf8')) as RegistryFile).sets.find((s) => s.id === id)
 		return (found?.slug || found?.source) && !found.skip ? { slug: found.slug ?? null, source: found.source, series: found.series, tcgplayerGroup: found.tcgplayerGroup } : undefined

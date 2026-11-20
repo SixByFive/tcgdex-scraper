@@ -150,11 +150,11 @@ async function buildOne(set: RegistrySet, entry: SetState, o: { repo: string; ap
 	// 1. scrape (skipped when the cache has it)
 	let have = await cachedCount(set.id)
 	const incomplete = await incompleteCards(set.id)
-	if (set.source === 'tcgdex') {
-		// pokemon.com doesn't have this set: its cards come from the TCGdex API
-		if (have < (expected ?? 1)) await (await import('./sources/tcgdex-fallback.ts')).fillFromTcgdex(set.id, { log: o.log })
+	if (set.source === 'tcgdex' || set.source === 'tcgcsv') {
+		// pokemon.com doesn't have this set: its cards come from the TCGdex API, or from TCGplayer's catalogue (TCGCSV)
+		if (have < (expected ?? 1)) await (await import('./sources/tcgcsv-cards.ts')).fillRegistrySet(set, o.log)
 		have = await cachedCount(set.id)
-		if (have === 0) throw new Error('TCGdex has no cards for this set')
+		if (have === 0) throw new Error(`${set.source === 'tcgcsv' ? 'TCGCSV' : 'TCGdex'} has no cards for this set`)
 	} else if (o.refresh || have === 0 || (expected != null && have < expected) || incomplete > 0) {
 		if (incomplete > 0) o.log(`[batch] ${set.id}: ${incomplete} cards have languages to retry`)
 		// pages already fetched come from the cache, so this only asks pokemon.com for the ones that are missing
@@ -165,7 +165,7 @@ async function buildOne(set: RegistrySet, entry: SetState, o: { repo: string; ap
 	} else o.log(`[batch] ${set.id}: ${have} cards already scraped`)
 	entry.scraped = have
 	if (have === 0) throw new Error('scrape found no cards on pokemon.com')
-	if (expected != null && have < expected) entry.notes.push(`${set.source === 'tcgdex' ? 'TCGdex' : 'pokemon.com and TCGdex have'} ${have} of ${expected} cards`)
+	if (expected != null && have < expected) entry.notes.push(`${set.source === 'tcgdex' ? 'TCGdex' : set.source === 'tcgcsv' ? 'TCGCSV' : 'pokemon.com and TCGdex have'} ${have} of ${expected} cards`)
 
 	// 2. enrich: variants and provider ids, flavor text, regulation marks, stages
 	const enrich = await enrichScrapedSet({ setId: set.id, repo: o.repo, tcgplayerSet: set.tcgplayerGroup ?? undefined })

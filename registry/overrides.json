@@ -30,7 +30,8 @@
 	"mfb": {
 		"source": "tcgdex",
 		"official": 34,
-		"total": 34
+		"total": 34,
+		"keepTcgdexIds": true
 	},
 	"fut2020": {
 		"source": "tcgdex"
@@ -75,5 +76,323 @@
 			"76_A",
 			"60_A"
 		]
+	},
+	"smp": {
+		"slug": "smp"
+	},
+	"xyp": {
+		"slug": "xyp"
+	},
+	"bwp": {
+		"slug": "bwp"
+	},
+	"sma": {
+		"id": "sm11.5sv",
+		"slug": "sma",
+		"plainCardIds": true
+	},
+	"xya": {
+		"slug": "xya"
+	},
+	"hgssp": {
+		"slug": "hsp"
+	},
+	"ex6": {
+		"slug": "ex6"
+	},
+	"2024sv": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 24163
+	},
+	"2023sv": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 23306
+	},
+	"2022swsh": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 3150
+	},
+	"2021swsh": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 2782
+	},
+	"2019sm": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 2555
+	},
+	"2018sm": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 2364
+	},
+	"2017sm": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 2148
+	},
+	"tk-sm-r": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 2069
+	},
+	"tk-sm-l": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 2069,
+		"tcgcsvNames": [
+			"Fighting Energy"
+		]
+	},
+	"2016xy": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 3087
+	},
+	"tk-xy-su": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1796
+	},
+	"tk-xy-p": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1796
+	},
+	"2015xy": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1694
+	},
+	"tk-xy-latio": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1536
+	},
+	"tk-xy-latia": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1536
+	},
+	"tk-xy-w": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1533
+	},
+	"tk-xy-b": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1533
+	},
+	"2014xy": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1692
+	},
+	"tk-xy-sy": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1532
+	},
+	"tk-xy-n": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1532
+	},
+	"rc": {
+		"tcgplayerGroup": 1465,
+		"source": "tcgcsv"
+	},
+	"2012bw": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1427
+	},
+	"tk-bw-z": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1538
+	},
+	"tk-bw-e": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1538
+	},
+	"2011bw": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1401
+	},
+	"tk-hs-r": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1540
+	},
+	"tk-hs-g": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1540
+	},
+	"ru1": {
+		"source": "tcgdex"
+	},
+	"pop9": {
+		"source": "tcgdex"
+	},
+	"pop8": {
+		"source": "tcgdex"
+	},
+	"pop7": {
+		"source": "tcgdex"
+	},
+	"tk-dp-m": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1541
+	},
+	"tk-dp-l": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1541
+	},
+	"pop6": {
+		"source": "tcgdex"
+	},
+	"dpp": {
+		"source": "tcgdex"
+	},
+	"pop5": {
+		"source": "tcgdex"
+	},
+	"pop4": {
+		"source": "tcgdex"
+	},
+	"pop3": {
+		"source": "tcgdex"
+	},
+	"tk-ex-p": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1542
+	},
+	"tk-ex-m": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1542
+	},
+	"exu": {
+		"source": "tcgdex"
+	},
+	"pop2": {
+		"source": "tcgdex"
+	},
+	"pop1": {
+		"source": "tcgdex"
+	},
+	"tk-ex-latio": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1543
+	},
+	"tk-ex-latia": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1543
+	},
+	"ex5.5": {
+		"source": "tcgdex"
+	},
+	"np": {
+		"source": "tcgdex"
+	},
+	"ecard3": {
+		"source": "tcgdex"
+	},
+	"ecard2": {
+		"source": "tcgdex"
+	},
+	"bog": {
+		"source": "tcgdex",
+		"tcgplayerGroup": 1455
+	},
+	"ecard1": {
+		"source": "tcgdex"
+	},
+	"sp": {
+		"skip": "TCGdex lists no cards for this set; to be built from Bulbapedia"
+	},
+	"lc": {
+		"source": "tcgdex"
+	},
+	"neo4": {
+		"source": "tcgdex"
+	},
+	"neo3": {
+		"source": "tcgdex"
+	},
+	"si1": {
+		"source": "tcgdex"
+	},
+	"neo2": {
+		"source": "tcgdex"
+	},
+	"neo1": {
+		"source": "tcgdex"
+	},
+	"gym2": {
+		"source": "tcgdex"
+	},
+	"gym1": {
+		"source": "tcgdex"
+	},
+	"base5": {
+		"source": "tcgdex"
+	},
+	"base4": {
+		"source": "tcgdex"
+	},
+	"jumbo": {
+		"skip": "Jumbo cards are not a set: they are oversized printings, added as size:jumbo variants of their parent cards (TCGCSV group 1528)"
+	},
+	"base3": {
+		"source": "tcgdex"
+	},
+	"wp": {
+		"source": "tcgdex",
+		"reprints": [
+			{
+				"set": "base2",
+				"localId": "60",
+				"stamps": [
+					"w-promo"
+				]
+			},
+			{
+				"set": "base3",
+				"localId": "50",
+				"stamps": [
+					"w-promo"
+				]
+			},
+			{
+				"set": "base4",
+				"localId": "63",
+				"stamps": [
+					"w-promo"
+				]
+			},
+			{
+				"set": "base5",
+				"localId": "19",
+				"stamps": [
+					"w-promo"
+				]
+			},
+			{
+				"set": "base5",
+				"localId": "32",
+				"stamps": [
+					"w-promo"
+				]
+			},
+			{
+				"set": "gym1",
+				"localId": "54",
+				"stamps": [
+					"w-promo"
+				]
+			},
+			{
+				"set": "gym2",
+				"localId": "37",
+				"stamps": [
+					"w-promo"
+				]
+			}
+		]
+	},
+	"basep": {
+		"source": "tcgdex"
+	},
+	"base2": {
+		"source": "tcgdex"
+	},
+	"base1": {
+		"source": "tcgdex"
+	},
+	"miscp": {
+		"source": "tcgdex"
 	}
 }

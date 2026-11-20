@@ -10,7 +10,7 @@ import { defaultRepo, listSets, loadSchema } from '../util/experimental.ts'
 import { fetchCards } from '../util/tcgtracking-open.ts'
 import { cardKey, collectorKey, tcgdexLocalId } from '../emit/normalise.ts'
 import { mergeTcgdexVariants, type ProductIds } from '../emit/tcgdex-variants.ts'
-import { applyPrizePack, loadPrizePackIndex, prizeProductOwner } from './tcgcsv.ts'
+import { applyJumbo, applyPrizePack, loadJumboIndex, loadPrizePackIndex, prizeProductOwner } from './tcgcsv.ts'
 
 // curly and straight apostrophes/quotes and case differ between sources for the same card
 import { sameCardName } from '../emit/names.ts'
@@ -92,11 +92,18 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<Enri
 				const k = cardKey(card)
 				if (k !== undefined) cardNames.set(k, (cardNames.get(k) ?? new Set()).add(nameKey(card.locales.en?.name ?? '')))
 			}
-			variants = await buildVariants(groupId, schema, warn, undefined, cardNames)
+			// Two sets can share one TCGplayer group (the two decks of a trainer kit): the products tagged with the other deck's name
+			// ("Hau (#19) (Alolan Raichu Half-Deck)") are not this set's, whatever their number
+			const registrySets = (await (await import('../registry/build.ts')).loadRegistry().catch(() => ({ sets: [] }))).sets
+			const deckOf = (name: string | undefined) => name?.match(/\(([^)]+)\)\s*$/)?.[1]?.toLowerCase()
+			const ownDeck = deckOf(registrySets.find((s) => s.id === opts.setId)?.name)
+			const otherDecks = registrySets.filter((s) => s.id !== opts.setId && s.tcgplayerGroup === groupId).map((s) => deckOf(s.name)).filter((x): x is string => Boolean(x) && x !== ownDeck)
+			const exclude = (p: { name: string }) => otherDecks.some((d) => [...p.name.matchAll(/\(([^)]+)\)/g)].some((m) => m[1]!.toLowerCase().includes(d)))
+			variants = await buildVariants(groupId, schema, warn, undefined, cardNames, exclude)
 			// A reprint set's products carry the printed numbers of the sets the cards come from (30th Classic Collection's Charizard
 			// is "4/102"), so a number points at the wrong card. When the names behind the numbers don't match the cards' names,
 			// every card is matched by name instead.
-			const products = (await fetchCards(groupId)).products
+			const products = (await fetchCards(groupId)).products.filter((p) => !exclude(p))
 			productIds = new Map(products.map((p) => [p.id, { cardmarket_id: p.cardmarket_id, cardtrader_id: p.cardtrader_id }]))
 			productNames = new Map(products.map((p) => [p.id, nameKey(p.name)]))
 			productList = products
@@ -145,10 +152,12 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<Enri
 	// ---- store ----------------------------------------------------------------------------------------------------
 	// TCGCSV: TCGplayer ids of the Play! Pokémon Prize Pack reprints of this set's cards (TCGdex has none for them)
 	let prize: Awaited<ReturnType<typeof loadPrizePackIndex>> | undefined
+	let jumbo: Awaited<ReturnType<typeof loadJumboIndex>> | undefined
 	let officialTotal: number | undefined
 	if (!opts.noTcgcsv) {
 		try { officialTotal = (await (await import('../registry/build.ts')).loadRegistry()).sets.find((x) => x.id === opts.setId)?.official ?? undefined } catch {}
 		try { prize = await loadPrizePackIndex(warn) } catch (err) { warn(`TCGCSV: ${(err as Error).message}; Prize Pack ids skipped`); problems.push(`TCGCSV failed (${(err as Error).message}): no Prize Pack ids`) }
+		try { jumbo = await loadJumboIndex(await loadSchema(repo), warn) } catch (err) { warn(`TCGCSV: ${(err as Error).message}; Jumbo variants skipped`); problems.push(`TCGCSV failed (${(err as Error).message}): no Jumbo variants`) }
 	}
 
 	let withVariants = 0, withText = 0, withMark = 0, fromTcgdex = 0, fromTcgcsv = 0, keptEarlier = 0
@@ -217,6 +226,10 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<Enri
 		if (prize) {
 			const r = applyPrizePack(list ?? [], card, prize, schema, warn, `${opts.setId}-${tcgdexLocalId(card)}`, officialTotal)
 			if (r.changed) { list = r.list; csvChanged = r.changed; fromTcgcsv += r.changed }
+		}
+		if (jumbo) {
+			const r = applyJumbo(list ?? [], card, jumbo, warn, `${opts.setId}-${tcgdexLocalId(card)}`, officialTotal)
+			if (r.changed) { list = r.list; csvChanged += r.changed; fromTcgcsv += r.changed }
 		}
 		// hand-checked corrections (registry/id-fixes.json) for ids a source gives the wrong card; they win over every source and
 		// are applied before the one-card-per-id check below, so the right card keeps the id

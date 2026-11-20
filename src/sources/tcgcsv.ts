@@ -5,7 +5,7 @@ import config from '../../config.json' with { type: 'json' }
 import { resolveFromText } from '../pricing/variant-resolver.ts'
 import type { VariantOut } from '../emit/variants.ts'
 import type { SchemaModule } from '../util/experimental.ts'
-import { idOf, sortVariants } from '../emit/variants.ts'
+import { idOf, nameKey, sortVariants } from '../emit/variants.ts'
 import type { ScrapedCard } from '../types/scraped.ts'
 
 /**
@@ -36,9 +36,17 @@ async function get<T>(url: string): Promise<T> {
 	const wait = lastCall + 150 - Date.now()
 	if (wait > 0) await new Promise((r) => setTimeout(r, wait))
 	lastCall = Date.now()
-	const res = await fetch(url, { headers: { 'User-Agent': config.userAgent, Accept: 'application/json' } })
-	if (!res.ok) throw new Error(`TCGCSV ${url} -> ${res.status}`)
-	return ((await res.json()) as { results: T }).results
+	// connecting to tcgcsv.com times out now and then (undici's 10 s): asked again before giving up
+	for (let attempt = 1; ; attempt++) {
+		try {
+			const res = await fetch(url, { headers: { 'User-Agent': config.userAgent, Accept: 'application/json' } })
+			if (!res.ok) throw new Error(`TCGCSV ${url} -> ${res.status}`)
+			return ((await res.json()) as { results: T }).results
+		} catch (err) {
+			if (attempt >= 3 || /-> 4\d\d/.test((err as Error).message)) throw err
+			await new Promise((r) => setTimeout(r, 1000 * attempt))
+		}
+	}
 }
 
 /** A group's products and prices (the prices say Normal / Holofoil / Reverse Holofoil per product). Cached for a day. */
@@ -195,6 +203,93 @@ export function applyPrizePack(list: VariantOut[], card: ScrapedCard, index: Pri
 		v.prices.tcgplayer = fits[0]!.productId
 		taken.add(fits[0]!.productId)
 		changed++
+	}
+	return { list: changed ? sortVariants(out) : list, changed }
+}
+
+// ---- Jumbo cards ---------------------------------------------------------------------------------------------------
+// Jumbo cards are not a set: each is an oversized printing of a card that belongs to another set (a Black Star promo, a main-set
+// Pokémon-EX, a box topper). TCGplayer lists them together in one group; each becomes a `size: jumbo` variant of its parent card.
+
+/** TCGplayer's "Jumbo Cards" group */
+export const JUMBO_GROUP = 1528
+
+export interface JumboProduct { productId: number; name: string; variant: Omit<VariantOut, 'prices'> }
+/** Jumbo products by `t|total|number|name` (a numbered set card) or `p|PREFIXnumber|name` (a promo: "XY17", "SM05"). */
+export type JumboIndex = Map<string, JumboProduct[]>
+
+/**
+ * The key a product is indexed under, from "{Name} - 074/111 (tag)" or "{Name} - XY17 (XY Black Star Promos)". A product with no
+ * number, or a bare number without the set's total ("Marshtomp - 011 (e-League)"), says nothing about which set it is of: undefined.
+ */
+export function jumboProductKey(name: string): string | undefined {
+	const head = name.replace(/\s*[(\[][^)\]]*[)\]]/g, '').trim()
+	const m = head.match(/^(.*?)\s+-\s+([A-Za-z]*)(\d+)(?:\/(\d+))?$/)
+	if (!m) return undefined
+	const [, , prefix, digits, total] = m
+	const n = Number(digits)
+	if (prefix) return `p|${prefix.toUpperCase()}${n}|${nameKey(name)}`
+	if (total) return `t|${Number(total)}|${n}|${nameKey(name)}`
+	return undefined
+}
+
+/** The keys a card can be found under: by its printed number when it has a prefix ("XY17"), and by the set's total and its number. */
+export function jumboCardKeys(card: ScrapedCard, officialTotal?: number): string[] {
+	const s = card.structural
+	const name = card.locales.en?.name
+	if (!name || s.number == null) return []
+	const key = nameKey(name)
+	const keys: string[] = []
+	const printed = (s.printedNumber ?? s.localId ?? '').match(/^([A-Za-z]+)(\d+)$/)
+	if (printed) keys.push(`p|${printed[1]!.toUpperCase()}${Number(printed[2])}|${key}`)
+	for (const t of new Set([s.total, officialTotal].filter((x): x is number => !!x))) keys.push(`t|${t}|${s.number}|${key}`)
+	return keys
+}
+
+export async function loadJumboIndex(schema: SchemaModule, warn: (m: string) => void): Promise<JumboIndex> {
+	const group = await fetchGroup(JUMBO_GROUP)
+	const subtypes = new Map<number, string[]>()
+	for (const p of group.prices) if (p.subTypeName) subtypes.set(p.productId, [...(subtypes.get(p.productId) ?? []), p.subTypeName])
+	const stamps = new Set<string>(schema.stamps)
+	const foils = new Set<string>(schema.foils)
+	const index: JumboIndex = new Map()
+	let unclear = 0, unplaced = 0
+	for (const p of group.products) {
+		const key = jumboProductKey(p.name)
+		if (!key) { if (p.extendedData?.some((e) => e.name === 'Number')) unplaced++; continue }
+		const kinds = [...new Set((subtypes.get(p.productId) ?? []).map((k) => TYPE_OF[k]).filter((x): x is string => Boolean(x)))]
+		if (kinds.length !== 1) { unclear++; continue }
+		const read = resolveFromText([...p.name.matchAll(/[(\[]([^)\]]+)[)\]]/g)].map((m) => m[1]!.trim()))
+		if (read?.stamp?.some((x) => !stamps.has(x)) || (read?.foil && !foils.has(read.foil))) { warn(`TCGCSV Jumbo: ${p.name} has a stamp or finish the schema lacks: skipped`); continue }
+		const list = index.get(key) ?? []
+		list.push({ productId: p.productId, name: p.name, variant: { type: kinds[0]!, foil: read?.foil || undefined, size: 'jumbo', stamps: read?.stamp?.length ? [...read.stamp].sort() : undefined } })
+		index.set(key, list)
+	}
+	if (unplaced) warn(`TCGCSV Jumbo: ${unplaced} products give no set total or promo prefix, so no parent card: skipped`)
+	if (unclear) warn(`TCGCSV Jumbo: ${unclear} products list more than one printing (or none): skipped`)
+	return index
+}
+
+/**
+ * Adds the jumbo printings of a card to its variants. A jumbo variant TCGdex already lists (same type, foil and stamps) gets the
+ * TCGplayer id when it has none; one it lacks is added. Two products that fit one variant are not guessed between.
+ */
+export function applyJumbo(list: VariantOut[], card: ScrapedCard, index: JumboIndex, warn: (m: string) => void, label: string, officialTotal?: number): { list: VariantOut[]; changed: number } {
+	const found = jumboCardKeys(card, officialTotal).flatMap((k) => index.get(k) ?? [])
+	if (!found.length) return { list, changed: 0 }
+	const out = list.map((v) => ({ ...v, prices: { ...v.prices } }))
+	const byId = new Map<string, JumboProduct[]>()
+	for (const p of new Map(found.map((f) => [f.productId, f])).values()) byId.set(idOf(p.variant), [...(byId.get(idOf(p.variant)) ?? []), p])
+	let changed = 0
+	for (const [id, products] of byId) {
+		if (products.length > 1) { warn(`${label}: ${products.length} Jumbo products fit one variant (${products.map((p) => p.productId).join(', ')}), none used`); continue }
+		const product = products[0]!
+		if (out.some((x) => x.prices.tcgplayer === product.productId)) continue
+		const have = out.find((x) => idOf(x) === id)
+		if (have) {
+			if (have.prices.tcgplayer == null) { have.prices.tcgplayer = product.productId; changed++ }
+			else warn(`${label}: the ${id} variant has TCGplayer ${have.prices.tcgplayer}, TCGCSV's Jumbo product is ${product.productId}: kept the first`)
+		} else { out.push({ ...product.variant, prices: { tcgplayer: product.productId } }); changed++ }
 	}
 	return { list: changed ? sortVariants(out) : list, changed }
 }

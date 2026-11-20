@@ -1,3 +1,4 @@
+import { tcgdexSetId } from '../util/tcgdex-id.ts'
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -84,7 +85,7 @@ export async function buildSetMeta(opts: SetMetaOptions): Promise<SetMetaResult>
 	// ---- 1. TCGdex -------------------------------------------------------------------------------------------------
 	const byLang: Partial<Record<(typeof LANGS)[number], TcgdexSet>> = {}
 	for (const lang of LANGS) {
-		const s = await tcgdex<TcgdexSet>(`${lang}/sets/${opts.setId}`)
+		const s = await tcgdex<TcgdexSet>(`${lang}/sets/${tcgdexSetId(opts.setId)}`)
 		if (s?.name) byLang[lang] = { ...s, name: s.name.trim() }
 	}
 	const dex = byLang.en
@@ -93,6 +94,13 @@ export async function buildSetMeta(opts: SetMetaOptions): Promise<SetMetaResult>
 
 	// ---- 2. TCGTracking --------------------------------------------------------------------------------------------
 	let groupId = opts.tcgplayerSet
+	// the registry's group (hand-corrected in overrides.json where the names don't pair up) beats a guess by name
+	if (!groupId) {
+		try {
+			const fromRegistry = (await (await import('../registry/build.ts')).loadRegistry()).sets.find((s) => s.id === opts.setId)?.tcgplayerGroup
+			if (fromRegistry) { groupId = fromRegistry; notes.push(`TCGplayer group ${fromRegistry} taken from the registry`) }
+		} catch { /* no registry: found by name below */ }
+	}
 	const englishGuess = opts.name ?? dex?.name
 	if (!groupId) {
 		const sets = await listPokemonSets()

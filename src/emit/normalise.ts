@@ -31,10 +31,13 @@ const alphaNumber = (printed: string | null | undefined): string | undefined => 
 }
 
 /** The card's id inside its set, as TCGdex and the repo write it: "TG01" for a Trainer Gallery card, "005" for card 5. */
-export const cardLocalId = (card: ScrapedCard): string =>
-	// a card built from TCGdex keeps TCGdex's own id form (My First Battle is "1", not "001")
-	// (so is one whose pages aren't numbered 1..n: the Classic Collection's "CC001")
-	(card.sourceSlug === 'tcgdex' || /^[A-Za-z]/.test(String(card.structural.localId)) ? card.structural.localId : undefined) ?? alphaNumber(card.structural.printedNumber) ??String(card.structural.localId).padStart(3, '0')
+export const cardLocalId = (card: ScrapedCard, keepTcgdexId = false, plainNumber = false): string =>
+	// A card built from TCGdex keeps an id that is not a plain number ("Museum", "TG01"), and so does one whose pages aren't numbered
+	// 1..n (the Classic Collection's "CC001"). A plain number is padded to three digits like every other set's, except in a set the
+	// registry marks `keepTcgdexIds` (My First Battle is "1", not "001"). `plainNumber` (registry `plainCardIds`) drops the printed prefix too:
+	// the Hidden Fates Shiny Vault's "SV1" is "001".
+	plainNumber ? String(card.structural.number ?? card.structural.localId).padStart(3, '0') :
+	(/^[A-Za-z]/.test(String(card.structural.localId)) || (card.sourceSlug === 'tcgdex' && (keepTcgdexId || !/^\d+$/.test(String(card.structural.localId)))) ? card.structural.localId : undefined) ?? alphaNumber(card.structural.printedNumber) ?? String(card.structural.localId).padStart(3, '0')
 
 /** The same id without the zero padding of plain numbers, the way the TCGdex API is asked for it. */
 export const tcgdexLocalId = (card: ScrapedCard): string =>
@@ -114,8 +117,16 @@ export function normaliseKind(card: ScrapedCard): Normalised {
 	return { category, stage, suffix, trainerType, energyType, warnings }
 }
 
+/** What pokemon.com prints for the rarity of a GX, EX or V card, and the schema's name for it (TCGdex and cards-database call a GX "Ultra Rare"). */
+const RARITY_ALIASES: Record<string, string> = {
+	'rare holo gx': 'Ultra Rare', 'rare holo ex': 'Ultra Rare', 'rare ultra': 'Ultra Rare',
+	'rare holo v': 'Holo Rare V', 'rare holo vmax': 'Holo Rare VMAX', 'rare holo vstar': 'Holo Rare VSTAR'
+}
+
 export function mapRarity(raw: string | null, rarities: readonly string[]): { rarity?: string; warning?: string } {
 	if (!raw) return {}
+	const alias = RARITY_ALIASES[raw.trim().toLowerCase()]
+	if (alias && rarities.includes(alias)) return { rarity: alias }
 	// gallery and vault cards print "Trainer Gallery Holo Rare", "Shiny Vault Rare Holo": the rarity is what follows
 	const bare = raw.trim().replace(/^(trainer gallery|galarian gallery|shiny vault|classic collection)\s+/i, '')
 	// pokemon.com prints "Amazing" / "Radiant" for what the schema calls "Amazing Rare" / "Radiant Rare"

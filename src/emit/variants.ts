@@ -38,7 +38,7 @@ export const nameKey = (s: string): string => s.replace(/\s+-\s+[A-Za-z]*\d+(?:\
  * `keyOf` says how products are keyed; by default their collector number. A reprint set's products carry the printed numbers of
  * the sets the cards come from (30th Classic Collection's Charizard is "4/102"), so those are keyed by name instead.
  */
-export async function buildVariants(groupId: number, schema: SchemaModule, warn: (msg: string) => void, keyOf?: (product: { id: number; name: string; number?: string | null }) => string | undefined, cardNames?: Map<string, Set<string>>): Promise<Map<string, VariantOut[]>> {
+export async function buildVariants(groupId: number, schema: SchemaModule, warn: (msg: string) => void, keyOf?: (product: { id: number; name: string; number?: string | null }) => string | undefined, cardNames?: Map<string, Set<string>>, exclude?: (product: { id: number; name: string }) => boolean): Promise<Map<string, VariantOut[]>> {
 	const [set, skus] = await Promise.all([fetchCards(groupId), fetchSkus(groupId)])
 	if (!skus) warn(`TCGTracking has no SKU data for group ${groupId}: variants come from CardTrader finishes and product names, so check them`)
 
@@ -66,7 +66,7 @@ export async function buildVariants(groupId: number, schema: SchemaModule, warn:
 	}
 
 	for (const product of set.products) {
-		if (skip.has(product.id)) continue
+		if (skip.has(product.id) || exclude?.(product)) continue
 		const n = keyOf ? keyOf(product) : collectorKey(product.number)
 		if (n === undefined) continue
 		product.skus = skus?.[String(product.id)]

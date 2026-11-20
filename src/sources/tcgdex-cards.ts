@@ -1,3 +1,4 @@
+import { tcgdexSetId } from '../util/tcgdex-id.ts'
 import pLimit from 'p-limit'
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
@@ -54,7 +55,7 @@ export async function fetchCard(setId: string, localId: string, lang: string, fr
 	for (let attempt = 0; attempt < 4; attempt++) {
 		if (attempt > 0) await new Promise((r) => setTimeout(r, 1500 * attempt))
 		try {
-			const res = await fetch(`${TCGDEX}/${lang}/cards/${setId}-${localId}`, { headers: { Accept: 'application/json', 'User-Agent': config.userAgent }, signal: AbortSignal.timeout(20000) })
+			const res = await fetch(`${TCGDEX}/${lang}/cards/${tcgdexSetId(setId)}-${localId}`, { headers: { Accept: 'application/json', 'User-Agent': config.userAgent }, signal: AbortSignal.timeout(20000) })
 			if (res.status === 404) return null
 			if (!res.ok) throw new Error(`TCGdex ${lang}/cards/${setId}-${localId} -> ${res.status}`)
 			const body = await res.json().catch(() => null)

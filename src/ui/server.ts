@@ -27,7 +27,7 @@ import { buildSetMeta } from '../sources/set-meta.ts'
 import { emitExperimental } from '../emit/experimental.ts'
 import { defaultRepo, intlDir, listSets as listExperimentalSets } from '../util/experimental.ts'
 import { buildCatalog, registrySet } from './catalog.ts'
-import { applyFixes, buildSet, loadFixes, registrySets, sameFix, saveFixes, writeSet, type ProductFix } from '../sources/sealed-set.ts'
+import { applyFixes, buildSet, galleryCount, loadFixes, registrySets, sameFix, saveFixes, writeSet, type ProductFix } from '../sources/sealed-set.ts'
 import { fileSafe } from '../util/experimental.ts'
 
 const PUBLIC_DIR = join(dirname(fileURLToPath(import.meta.url)), 'public')
@@ -531,8 +531,8 @@ export async function startUi(port = 5173): Promise<void> {
 			const setId = (body.setId ?? '').trim()
 			const set = setId ? await registrySet(setId) : undefined
 			if (!set) return jsonRes(res, { error: `${setId || 'no set'} is not a scrapable set in the registry` }, 400)
-			const args = set.source === 'tcgdex' || !set.slug
-				? ['scrape', 'tcgdex', setId, ...(set.tcgplayerGroup ? ['--tcgplayer-set', String(set.tcgplayerGroup)] : [])]
+			const args = set.source === 'tcgdex' || set.source === 'tcgcsv' || !set.slug
+				? ['scrape', set.source === 'tcgcsv' ? 'tcgcsv' : 'tcgdex', setId, ...(set.tcgplayerGroup ? ['--tcgplayer-set', String(set.tcgplayerGroup)] : [])]
 				: ['scrape', 'set', set.slug, '--serie', set.series, '--set', setId, ...(body.fresh ? ['--fresh'] : []), ...(set.tcgplayerGroup ? ['--tcgplayer-set', String(set.tcgplayerGroup)] : [])]
 			const result = spawnJob(setId, 'scrape', args)
 			return jsonRes(res, result, result.running ? 409 : 200)
@@ -569,7 +569,14 @@ export async function startUi(port = 5173): Promise<void> {
 				try { written = (await readdir(join(intlDir(repo), 'products', fileSafe(x.name)))).filter((f) => f.endsWith('.ts')).length } catch {}
 				return { id: x.id, name: x.name, series: x.series, releaseDate: x.releaseDate ?? null, written, fixes: fixes.filter((f) => f.set === x.id).length }
 			}))
-			return jsonRes(res, { repo, sets })
+			return jsonRes(res, { repo, sets, gallery: { count: await galleryCount(), running: runningJobs.has('_gallery:gallery') } })
+		}
+		// the official gallery: a visible browser opens and downloads the product pages (the same way the card scrape does)
+		if (path === '/api/gallery/scrape' && req.method === 'POST') {
+			let body: { years?: number[]; refresh?: boolean } = {}
+			try { body = await readJsonBody(req) } catch { /* no body: every year */ }
+			const args = ['gallery', 'scrape', ...(body.years?.length ? ['--years', body.years.join(',')] : []), ...(body.refresh ? ['--refresh'] : [])]
+			return jsonRes(res, spawnJob('_gallery', 'gallery', args))
 		}
 		const productsSet = path.match(/^\/api\/products\/set\/([^/]+)(\/write)?$/)
 		if (productsSet) {
@@ -588,7 +595,7 @@ export async function startUi(port = 5173): Promise<void> {
 		if (path === '/api/products/fix' && req.method === 'POST') {
 			let fix: ProductFix
 			try { fix = await readJsonBody<ProductFix>(req) } catch { res.writeHead(400).end('bad json'); return }
-			if (!fix?.set || !fix.product || !['exclude', 'type', 'name', 'contents', 'price'].includes(fix.op)) return jsonRes(res, { error: 'set, product and a known op are required' }, 400)
+			if (!fix?.set || !fix.product || !['exclude', 'type', 'name', 'contents', 'variantContents', 'price'].includes(fix.op)) return jsonRes(res, { error: 'set, product and a known op are required' }, 400)
 			const all = (await loadFixes()).filter((f) => !sameFix(f, fix))
 			all.push(fix)
 			await saveFixes(all)

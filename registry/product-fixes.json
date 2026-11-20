@@ -1,0 +1,13 @@
+[
+	{
+		"set": "me05",
+		"product": "me05-premium-checklane-blister",
+		"op": "variantContents",
+		"variant": "gengar-line",
+		"value": {
+			"promos": ["me03-048", "me03-050"],
+			"items": [{ "item": { "en": "Cards featuring an evolution line" }, "quantity": 0 }]
+		},
+		"why": "From a photo of the blister: the two cards are Perfect Order 050/088 Gengar (illustrator Masako Tomii) and, behind it, Gastly (illustrator MARINA Chikazawa). They are cards of the previous set, not promos. pokemon.com's gallery has no blisters and retailers only say \"2 cards featuring an evolution line\"."
+	}
+]

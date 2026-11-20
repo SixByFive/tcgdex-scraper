@@ -54,3 +54,35 @@ describe('product fixes', () => {
 		expect(sameFix(p, { ...p, variant: 'pokemon-center' })).toBe(false)
 	})
 })
+
+describe('a correction to one version', () => {
+	const blister = (): ProductFile => ({
+		id: 'x-blister', type: 'blister', name: { en: 'X Blister' }, set: 'x',
+		variants: [
+			{ prices: { tcgplayer: 1 }, contents: { promos: [{ name: 'Gengar Line' }] } },
+			{ prices: { tcgplayer: 2 }, contents: { promos: [{ name: 'Luxray Line' }] } }
+		],
+		provenance: { source: 'tcgtracking', validation: 'unverified' }
+	})
+	const fix = (over: object): ProductFix => ({ set: 'x', product: 'x-blister', op: 'variantContents', variant: 'gengar-line', value: { promos: ['y-048', 'y-050'] }, ...over } as ProductFix)
+
+	test("a version's contents are replaced, found by the id the scraper built it with", () => {
+		const { files } = applyFixes([blister()], [fix({})])
+		expect((files[0]!.variants[0] as any).contents).toEqual({ promos: ['y-048', 'y-050'] })
+		expect((files[0]!.variants[1] as any).contents).toEqual({ promos: [{ name: 'Luxray Line' }] })
+	})
+
+	test('a price fix still finds the version after its promos changed what its id is made of', () => {
+		const { files } = applyFixes([blister()], [fix({}), { set: 'x', product: 'x-blister', op: 'price', variant: 'gengar-line', provider: 'cardmarket', value: 9 }])
+		expect((files[0]!.variants[0] as any).prices).toEqual({ tcgplayer: 1, cardmarket: 9 })
+	})
+
+	test('empty contents remove the version\'s own', () => {
+		expect((applyFixes([blister()], [fix({ value: {} })]).files[0]!.variants[0] as any).contents).toBeUndefined()
+	})
+
+	test('corrections to different versions are kept apart', () => {
+		expect(sameFix(fix({}), fix({ value: { promos: [] } }))).toBe(true)
+		expect(sameFix(fix({}), fix({ variant: 'luxray-line' }))).toBe(false)
+	})
+})

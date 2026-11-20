@@ -32,17 +32,27 @@ export interface RegistrySet {
 	/** why the set can't be built, when it can't (no pokemon.com source, ...) */
 	skip?: string
 	/** "tcgdex": pokemon.com doesn't have the set, so its cards are built from the TCGdex API */
-	source?: 'tcgdex'
+	source?: 'tcgdex' | 'tcgcsv'
 	/** pokemon.com's page key for card 1, 2, 3...: for a set whose pages aren't numbered 1..n (Classic Collection: "2_A", "15_A1") */
 	cardKeys?: string[]
 	/** with cardKeys: the id prefix TCGdex gives the cards ("CC" makes card 1 "CC001") */
 	idPrefix?: string
+	/** TCGdex's id for the set, when the repo's differs ("sma" is "sm11.5sv" here) */
+	tcgdexId?: string
+	/** the card files are the plain three-digit number ("001.ts"), without the printed prefix ("SV1") */
+	plainCardIds?: boolean
+	/** a TCGdex-built set whose card files keep TCGdex's unpadded ids ("1.ts"), instead of the repo's three digits ("001.ts") */
+	keepTcgdexIds?: boolean
+	/** a TCGdex set that lacks cards TCGplayer has: the names of the products to take from the set's TCGplayer group */
+	tcgcsvNames?: string[]
+	/** a set of reprints (W Promotional): card n is `reprints[n-1]`, a card of another set, under the promo's stamp */
+	reprints?: { set: string; localId: string; stamps?: string[] }[]
 	notes: string[]
 }
 
 export interface Registry { generatedAt: string; sets: RegistrySet[] }
 
-interface Override { slug?: string | null; tcgplayerGroup?: number | null; skip?: string; source?: 'tcgdex'; official?: number; total?: number; cardKeys?: string[]; idPrefix?: string }
+interface Override { id?: string; plainCardIds?: boolean; slug?: string | null; tcgplayerGroup?: number | null; skip?: string; source?: 'tcgdex' | 'tcgcsv'; official?: number; total?: number; cardKeys?: string[]; idPrefix?: string; keepTcgdexIds?: boolean; tcgcsvNames?: string[]; reprints?: { set: string; localId: string; stamps?: string[] }[] }
 
 async function getJson<T>(url: string): Promise<T> {
 	const res = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': config.userAgent } })
@@ -96,7 +106,12 @@ export async function buildRegistry(opts: { series: string[]; refreshExpansions?
 	const expansions = await loadExpansions(Boolean(opts.refreshExpansions), log)
 	const tracked = await listPokemonSets()
 	const slugsByName = new Map<string, string[]>()
-	for (const e of expansions) slugsByName.set(norm(e.label), [...(slugsByName.get(norm(e.label)) ?? []), e.slug])
+	// older expansions are labelled "XY—Steam Siege", "BW-Plasma Blast": registered under the bare name too
+	for (const e of expansions) {
+		for (const key of new Set([norm(e.label), norm(e.label.replace(/^[A-Za-z]{2,4}\s*[—–-]\s*/, ''))])) {
+			if (!(slugsByName.get(key) ?? []).includes(e.slug)) slugsByName.set(key, [...(slugsByName.get(key) ?? []), e.slug])
+		}
+	}
 
 	const sets: RegistrySet[] = []
 	for (const seriesId of opts.series) {
@@ -132,6 +147,12 @@ export async function buildRegistry(opts: { series: string[]; refreshExpansions?
 				if (o.source) entry.source = o.source
 				if (o.cardKeys) entry.cardKeys = o.cardKeys
 				if (o.idPrefix) entry.idPrefix = o.idPrefix
+				if (o.keepTcgdexIds) entry.keepTcgdexIds = true
+				if (o.plainCardIds) entry.plainCardIds = true
+				// the repo's id for the set, when it is not TCGdex's
+				if (o.id && o.id !== entry.id) { entry.tcgdexId = entry.id; entry.id = o.id }
+				if (o.tcgcsvNames) entry.tcgcsvNames = o.tcgcsvNames
+				if (o.reprints) entry.reprints = o.reprints
 				// TCGdex counts products, not cards, for some sets (My First Battle: 48 products are 34 cards in several printings)
 				if (o.official) entry.official = o.official
 				if (o.total) entry.total = o.total
@@ -139,6 +160,12 @@ export async function buildRegistry(opts: { series: string[]; refreshExpansions?
 			if (!entry.slug && !entry.skip && !entry.source) entry.skip = 'no pokemon.com expansion found'
 			sets.push(entry)
 		}
+	}
+
+	// series not rebuilt this time stay as they were, so adding an older era does not drop the newer ones
+	if (existsSync(REGISTRY_FILE)) {
+		const kept = (JSON.parse(await readFile(REGISTRY_FILE, 'utf8')) as Registry).sets.filter((s) => !opts.series.includes(s.series))
+		sets.push(...kept)
 	}
 
 	// newest first: the order the eras are built in

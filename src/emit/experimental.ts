@@ -9,6 +9,7 @@ import { cardKey, cardLocalId, damageValue, mapRarity, normaliseKind, perLang, t
 import { buildVariants, sortVariants } from './variants.ts'
 import { fetchCardExtras } from '../sources/tcgdex-cards.ts'
 import { sameCardName } from './names.ts'
+import { evolvedStage } from './evolution.ts'
 import { defaultRepo, listSets, loadFormat, loadPriceProviders, loadSchema, today } from '../util/experimental.ts'
 
 // curly and straight apostrophes/quotes and case differ between sources for the same card
@@ -54,6 +55,11 @@ export async function emitExperimental(opts: ExperimentalEmitOptions): Promise<E
 	const set = (await listSets(repo)).find((s) => s.id === opts.setId)
 	if (!set) throw new Error(`No set "${opts.setId}" in ${repo}. Run set-meta --apply first.`)
 
+	// a set whose TCGdex ids are not padded and stay so (My First Battle: "1")
+	const regSet = (await (await import('../registry/build.ts')).loadRegistry().catch(() => ({ sets: [] }))).sets.find((s) => s.id === opts.setId)
+	const keepIds = regSet?.keepTcgdexIds === true
+	const plainIds = regSet?.plainCardIds === true
+
 	const scrapedDir = join(config.cacheDir, 'pokemon-com', opts.setId)
 	if (!existsSync(scrapedDir)) throw new Error(`No scrape at ${scrapedDir}. Run scrape set first.`)
 	const scraped: ScrapedCard[] = []
@@ -75,7 +81,7 @@ export async function emitExperimental(opts: ExperimentalEmitOptions): Promise<E
 	if (enriched) {
 		const when = scraped.map((c) => c.enrichedAt).filter(Boolean).sort().pop()!.slice(0, 10)
 		log(`[emit] using the variants and TCGdex data stored with the scrape (${when}); run enrich-scraped to refresh`)
-		if (!opts.noVariants && scraped.some((c) => c.variants)) variants = new Map(scraped.flatMap((c) => c.variants ? [[cardLocalId(c), sortVariants([...c.variants])] as const] : []))
+		if (!opts.noVariants && scraped.some((c) => c.variants)) variants = new Map(scraped.flatMap((c) => c.variants ? [[cardLocalId(c, keepIds, plainIds), sortVariants([...c.variants])] as const] : []))
 		else if (!opts.noVariants) warn('the scrape has no variants (no TCGplayer group was found): cards are written without them')
 		if (!opts.noTcgdex) extras = new Map(scraped.flatMap((c) => c.tcgdex ? [[tcgdexLocalId(c), c.tcgdex] as const] : []))
 	} else {
@@ -94,7 +100,7 @@ export async function emitExperimental(opts: ExperimentalEmitOptions): Promise<E
 
 	for (const card of scraped) {
 		const s = card.structural
-		const localId = cardLocalId(card)
+		const localId = cardLocalId(card, keepIds, plainIds)
 		const label = `${opts.setId}-${localId}`
 		const file = join(set.dir, `${localId}.ts`)
 		const kind = normaliseKind(card)
@@ -107,6 +113,12 @@ export async function emitExperimental(opts: ExperimentalEmitOptions): Promise<E
 			kind.stage = tcgdexStage
 			usedTcgdex = true
 			kind.warnings = kind.warnings.filter((w) => !w.startsWith('stage unknown'))
+		}
+		// neither source gives the stage: it follows from what the card evolves from
+		const from = card.locales.en?.evolvesFromName
+		if (kind.category === 'Pokemon' && !kind.stage && from) {
+			const inferred = await evolvedStage(from, scraped, opts.setId)
+			if (inferred) { kind.stage = inferred; kind.warnings = kind.warnings.filter((w) => !w.startsWith('stage unknown')) }
 		}
 		kind.warnings.forEach((w) => warn(`${label}: ${w}`))
 		const { rarity, warning } = mapRarity(s.rarity, schema.rarities)
@@ -187,7 +199,7 @@ export async function emitExperimental(opts: ExperimentalEmitOptions): Promise<E
 
 		if (variants) {
 			// stored variants are keyed by the card's id (cards can share a printed number: four Classic Collection cards are "15")
-			const list = variants.get(enriched && !opts.noVariants && scraped.some((c) => c.variants) ? cardLocalId(card) : cardKey(card) ?? '')
+			const list = variants.get(enriched && !opts.noVariants && scraped.some((c) => c.variants) ? cardLocalId(card, keepIds, plainIds) : cardKey(card) ?? '')
 			if (list?.length) {
 				// the repo accepts a provider's id on a variant only when the provider has a price group for its type (Cardmarket and
 				// TCGplayer have normal/holo/reverse): a lenticular or metal variant keeps its other ids and loses these

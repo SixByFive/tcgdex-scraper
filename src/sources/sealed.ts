@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { fileSafe } from '../util/experimental.ts'
 import { loadSealedCatalogue, matchSealed, type CmSealed } from './cardmarket-sealed.ts'
 import { featuredCards, loadPromoCards, pickPromo, promoNameFromText, type PromoCard } from './sealed-promos.ts'
+import { assignGallery, galleryContentsText, type GalleryProduct } from './pokemon-gallery.ts'
 import { fetchSealed } from '../util/tcgtracking-open.ts'
 
 /**
@@ -132,13 +133,15 @@ export function parseContents(raw: string | undefined, setId: string, have: (id:
 	return out.length ? out : undefined
 }
 
-export interface BuildResult { files: ProductFile[]; skipped: { id: number; name: string; why: string }[]; cardmarket: { filled: number; conflicts: string[]; unmatched: string[] }; promos: { linked: string[]; unlinked: string[] }; review: Record<string, ProductReview>; cardNames: Record<string, string> }
+export interface BuildResult { files: ProductFile[]; skipped: { id: number; name: string; why: string }[]; cardmarket: { filled: number; conflicts: string[]; unmatched: string[] }; galleryFor: Record<string, string>; galleryUsed: string[]; promos: { linked: string[]; unlinked: string[] }; review: Record<string, ProductReview>; cardNames: Record<string, string> }
 
 /** Where each variant of a product came from, for a person checking it: the names the providers give the ids, and the description the contents were read from. */
 export interface ReviewMember { variant: string; tcgplayerId: number; tcgplayerName: string; cardmarketId?: number; cardmarketName?: string; cardmarketHow?: 'TCGTracking' | 'name match'; cardtraderId?: number }
 export interface ProductReview { members: ReviewMember[]; description?: string; descriptionFrom?: string }
 
-export function buildProducts(setId: string, setName: string, released: string | undefined, tracked: Tracked[], cm: CmSealed[] = [], promoCards: PromoCard[] = []): BuildResult {
+export function buildProducts(setId: string, setName: string, released: string | undefined, tracked: Tracked[], cm: CmSealed[] = [], promoCards: PromoCard[] = [], gallery: GalleryProduct[] = []): BuildResult {
+	const galleryUsed = new Set<string>()
+	const galleryFor: Record<string, string> = {}
 	const promoLinked: string[] = [], promoUnlinked: string[] = []
 	const pfx = setId.replace(/\./g, '-')
 	const skipped: BuildResult['skipped'] = []
@@ -171,12 +174,16 @@ export function buildProducts(setId: string, setName: string, released: string |
 	}
 	const packArt = new Map<string, number>()
 	for (const k of groups.keys()) { const m = k.match(/^((?:sleeved-)?booster-pack)-art-bundle-set-of-(\d+)$/); if (m) packArt.set(m[1]!, Number(m[2])) }
+	// pokemon.com's own page for a product, when it has one, says what is inside: it is preferred to the retailers' text
+	const pageOf = assignGallery([...groups].map(([key, g]) => ({ key, name: g.base })), setName, gallery)
 	const ids = new Set([...groups.keys()].map((k) => `${pfx}-${k}`))
 	const files: ProductFile[] = []
 	const review: Record<string, ProductReview> = {}
 	for (const [key, g] of groups) {
 		const id = `${pfx}-${key}`
 		const std = g.members.find((m) => !m.parsed.exclusive && !m.parsed.artwork) ?? g.members.find((m) => !m.parsed.exclusive) ?? g.members[0]!
+				const page = pageOf.get(key)
+		if (page && galleryContentsText(page)) { galleryUsed.add(page.slug); galleryFor[id] = page.slug; std.p.ext_data = { ...std.p.ext_data, CardText: galleryContentsText(page) }; std.p.descFrom = `pokemon.com: ${page.title}` }
 		const variants: Record<string, unknown>[] = []
 		// a name in brackets is the promo card the version holds (a blister, or anything whose text names a promo): the version is told apart by its promos, not an attribute; else it is a pack or box artwork
 		const promoish = g.type === 'blister' || /promo/i.test(std.p.ext_data?.CardText ?? '')
@@ -274,7 +281,7 @@ export function buildProducts(setId: string, setName: string, released: string |
 			provenance: { source: 'tcgtracking', validation: 'unverified', limitations: ['contents are read from the retailer description; Cardmarket ids matched by product name; promo cards matched by the Pokémon named in the description and when the promo was listed (unverified)'] }
 		})
 	}
-	return { files, skipped, cardmarket: { filled, conflicts, unmatched: cm.length ? unmatched : [] }, promos: { linked: promoLinked, unlinked: promoUnlinked }, review, cardNames: Object.fromEntries(promoCards.map((c) => [c.id, c.name])) }
+	return { files, skipped, cardmarket: { filled, conflicts, unmatched: cm.length ? unmatched : [] }, galleryFor, galleryUsed: [...galleryUsed], promos: { linked: promoLinked, unlinked: promoUnlinked }, review, cardNames: Object.fromEntries(promoCards.map((c) => [c.id, c.name])) }
 }
 
 // ---- writing -----------------------------------------------------------------------------------------------------

@@ -18,7 +18,7 @@ export async function renderProducts(app, setId, { closeStream, setTopbarStatus 
 	app.innerHTML = `<div class="page page-full">
 		<div class="page-head">
 			<div><h1 class="page-title">Products</h1><div class="page-sub" id="pr-sub">Loading…</div></div>
-			<div class="toolbar"><input class="search" id="pr-q" type="search" placeholder="Filter sets…" autocomplete="off"></div>
+			<div class="toolbar"><span class="muted small" id="pr-gallery"></span><button class="btn" id="pr-gallery-btn" title="Opens a browser window and downloads pokemon.com's product pages: what is inside each box. Solve a bot check by hand if one shows.">Scrape the official gallery</button><input class="search" id="pr-q" type="search" placeholder="Filter sets…" autocomplete="off"></div>
 		</div>
 		<div class="pr-layout">
 			<div class="pr-sets" id="pr-sets"></div>
@@ -36,6 +36,21 @@ export async function renderProducts(app, setId, { closeStream, setTopbarStatus 
 			`<a class="pr-set" href="#/products/${encodeURIComponent(s.id)}" aria-current="${s.id === setId}"><span class="pr-set-name">${esc(s.name)}</span>
 			<span class="muted small mono">${esc(s.id)}</span><span class="pr-set-chips">${s.written ? `<span class="chip ok"><span class="chip-dot"></span>${s.written} written</span>` : ''}${s.fixes ? `<span class="chip warn"><span class="chip-dot"></span>${s.fixes} fixes</span>` : ''}</span></a>`).join('')
 	}
+	/** The gallery's state: how many pages are kept, and a button to scrape. While it runs the page asks again every few seconds. */
+	const drawGallery = (g) => {
+		$('pr-gallery').textContent = g.running ? 'Scraping the gallery… (see the browser window)' : `${g.count} gallery pages kept`
+		$('pr-gallery-btn').disabled = g.running
+		if (g.running) setTimeout(async () => {
+			if (!document.getElementById('pr-gallery')) return
+			try { const l = await fetch('/api/products/sets').then((r) => r.json()); list = l; drawGallery(l.gallery); if (!l.gallery.running && setId) drawSet(setId) } catch { /* try again */ }
+		}, 4000)
+	}
+	drawGallery(list.gallery)
+	$('pr-gallery-btn').addEventListener('click', async () => {
+		$('pr-gallery-btn').disabled = true
+		await post('/api/gallery/scrape', {})
+		drawGallery({ count: list.gallery.count, running: true })
+	})
 	drawList()
 	$('pr-q').addEventListener('input', (e) => drawList(e.target.value))
 	if (setId) await drawSet(setId)
@@ -81,6 +96,7 @@ export async function renderProducts(app, setId, { closeStream, setTopbarStatus 
 				${data.skipped.length ? `<details><summary>${data.skipped.length} products have no type and are left out</summary><ul class="report-list">${data.skipped.map((s) => `<li>${esc(s.name)} <span class="muted small">TCGplayer ${s.id}</span></li>`).join('')}</ul></details>` : ''}
 				${data.cardmarket.unmatched.length ? `<details><summary>${data.cardmarket.unmatched.length} products have no Cardmarket id</summary><ul class="report-list">${data.cardmarket.unmatched.map((s) => `<li>${esc(s)}</li>`).join('')}</ul></details>` : ''}
 				${data.cardmarket.conflicts.length ? `<details open><summary>${data.cardmarket.conflicts.length} Cardmarket ids where the sources disagree</summary><ul class="report-list">${data.cardmarket.conflicts.map((s) => `<li>${esc(s)}</li>`).join('')}</ul></details>` : ''}
+				${data.galleryUnused?.length ? `<details><summary>${data.galleryUnused.length} pokemon.com pages for this set matched no product</summary><ul class="report-list">${data.galleryUnused.map(([slug, title]) => `<li><a href="https://www.pokemon.com/us/pokemon-tcg/product-gallery/${esc(slug)}" target="_blank" rel="noreferrer">${esc(title)}</a></li>`).join('')}</ul></details>` : ''}
 				${data.promos.unlinked.length ? `<details><summary>${data.promos.unlinked.length} promo cards not linked</summary><ul class="report-list">${data.promos.unlinked.map((s) => `<li>${esc(s)}</li>`).join('')}</ul></details>` : ''}
 			</div>
 			<table class="variant-table pr-table"><thead><tr><th>Product</th><th>Type</th><th class="num">Variants</th><th class="num">Contents</th><th>Checks</th></tr></thead><tbody>
@@ -121,8 +137,8 @@ export async function renderProducts(app, setId, { closeStream, setTopbarStatus 
 					<div>
 						<div class="section-label">Variants and ids</div>
 						<table class="variant-table"><thead><tr><th>Variant</th><th>TCGplayer</th><th>Cardmarket</th><th>CardTrader</th></tr></thead><tbody>
-						${rev.members.map((m) => {
-							const v = final.variants.find((x) => variantKey(x) === m.variant)
+						${rev.members.map((m, idx) => {
+							const v = final.variants[idx] // the members are the first variants, in order (a correction can change a variant's id, never its place)
 							const cm = v?.prices?.cardmarket, tp = v?.prices?.tcgplayer, ct = v?.prices?.cardtrader
 							return `<tr><td class="mono">${esc(m.variant)}</td>
 								<td>${tp ? `<a href="${link.tcgplayer(tp)}" target="_blank" rel="noreferrer" class="mono">${tp}</a>` : '–'}<div class="muted small">${esc(m.tcgplayerName)}</div><button class="btn btn-ghost pr-id" data-v="${esc(m.variant)}" data-p="tcgplayer">edit</button></td>
@@ -131,7 +147,8 @@ export async function renderProducts(app, setId, { closeStream, setTopbarStatus 
 						}).join('')}</tbody></table>
 						<div class="section-label" style="margin-top:14px">Contents${JSON.stringify(final.contents) === JSON.stringify(p.contents) ? '' : ' (corrected)'}</div>
 						${contentsHtml(final.contents) || '<div class="muted small">None: the description has no list.</div>'}
-						${final.variants.some((v) => v.contents) ? `<div class="section-label" style="margin-top:10px">What the versions change</div>${final.variants.filter((v) => v.contents).map((v) => `<div class="muted small"><span class="mono">${esc(variantKey(v))}</span></div>${contentsHtml(v.contents)}`).join('')}` : ''}
+						<div class="section-label" style="margin-top:10px">What each version holds besides that</div>
+						${rev.members.map((m, idx) => { const v = final.variants[idx]; return `<div class="pr-version"><span class="mono">${esc(variantKey(v))}</span>${contentsHtml(v.contents) || '<span class="muted small"> nothing of its own</span>'}<details><summary class="muted small">Edit</summary><textarea class="input pr-vjson" data-v="${esc(m.variant)}" rows="5" spellcheck="false">${esc(JSON.stringify(v.contents ?? {}, null, 1))}</textarea><div class="toolbar"><button class="btn pr-vsave" data-v="${esc(m.variant)}">Save as a correction</button><span class="muted small pr-vmsg"></span></div></details></div>` }).join('')}
 						${unlinkedFor(p.id).map((u) => `<div class="muted small">⚠ ${esc(u)}</div>`).join('')}
 						<details style="margin-top:8px"><summary class="muted small">Edit contents (JSON)</summary>
 							<textarea class="input pr-json" rows="10" spellcheck="false">${esc(JSON.stringify(final.contents ?? {}, null, 1))}</textarea>
@@ -165,6 +182,13 @@ export async function renderProducts(app, setId, { closeStream, setTopbarStatus 
 				if (!value || Array.isArray(value) || typeof value !== 'object' || Object.keys(value).some((x) => !['boosterPacks', 'products', 'promos', 'items'].includes(x))) { cell.querySelector('.pr-msg').textContent = 'Contents is an object with boosterPacks, products, promos and items.'; return }
 				fix({ product: p.id, op: 'contents', value })
 			})
+			cell.querySelectorAll('.pr-vsave').forEach((b) => b.addEventListener('click', () => {
+				const box = cell.querySelector(`.pr-vjson[data-v="${CSS.escape(b.dataset.v)}"]`), msg = b.parentElement.querySelector('.pr-vmsg')
+				let value
+				try { value = JSON.parse(box.value) } catch (err) { msg.textContent = `Not valid JSON: ${err.message}`; return }
+				if (!value || Array.isArray(value) || typeof value !== 'object' || Object.keys(value).some((x) => !['boosterPacks', 'products', 'promos', 'items'].includes(x))) { msg.textContent = 'Contents is an object with boosterPacks, products, promos and items.'; return }
+				fix({ product: p.id, op: 'variantContents', variant: b.dataset.v, value })
+			}))
 			cell.querySelector('.pr-save-meta').addEventListener('click', () => {
 				const type = cell.querySelector('.pr-type').value, name = cell.querySelector('.pr-name').value.trim()
 				if (type !== final.type) fix({ product: p.id, op: 'type', value: type })

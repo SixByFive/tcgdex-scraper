@@ -53,3 +53,27 @@ describe('a version is told apart by its promos', () => {
 		expect((pack.variants[0] as { prices: { tcgplayer: number } }).prices.tcgplayer).toBe(3)
 	})
 })
+
+describe("pokemon.com's own page is preferred to the retailers' text", () => {
+	const page = (slug: string, title: string, items: string[]) => ({ slug, url: '', year: 2026, title, text: [], sections: [{ heading: `The ${title} includes:`, items }], images: [], scrapedAt: '' })
+	const etb = () => tracked(10, 'Pitch Black Elite Trainer Box', '<br>• 9 Pitch Black booster packs<br>• 45 Pokémon TCG Energy cards')
+	const pack = tracked(3, 'Pitch Black Booster Pack')
+	const pages = [
+		page('etb', 'Pokémon TCG: Mega Evolution—Pitch Black Elite Trainer Box', ['9 Pokémon TCG: Mega Evolution—Pitch Black booster packs', '40 Pokémon TCG Energy cards']),
+		page('pc-etb', 'Pokémon TCG: Mega Evolution—Pitch Black Pokémon Center Elite Trainer Box', ['9 booster packs', '99 Energy']),
+		page('other', 'Pokémon TCG: Mega Evolution—Perfect Order Elite Trainer Box', ['9 booster packs', '1 Energy'])
+	]
+
+	test('the matching page replaces the retailer text: the quantity it gives wins', () => {
+		const { files, galleryFor } = buildProducts('me05', 'Pitch Black', undefined, [etb(), pack], [], [], pages)
+		const box = files.find((f) => f.id === 'me05-elite-trainer-box')!
+		expect(box.contents).toEqual({ boosterPacks: { 'me05-booster-pack': { quantity: 9 } }, items: [{ item: { en: 'Pokémon TCG Energy cards' }, quantity: 40 }] })
+		expect(galleryFor).toEqual({ 'me05-elite-trainer-box': 'etb' })
+	})
+
+	test('without a page the retailer text is used', () => {
+		const { files, galleryFor } = buildProducts('me05', 'Pitch Black', undefined, [etb(), pack], [], [], [])
+		expect((files.find((f) => f.id === 'me05-elite-trainer-box')!.contents!.items![0]!.quantity)).toBe(45)
+		expect(galleryFor).toEqual({})
+	})
+})

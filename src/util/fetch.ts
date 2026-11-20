@@ -90,7 +90,13 @@ export async function readCachedOnly(url: string): Promise<string | null> {
 	try { return await readFile(join(config.cacheDir, `${sha(url)}.html`), 'utf8') } catch { return null }
 }
 
-export async function getCached(url: string): Promise<string> {
+/**
+ * A page of pokemon.com through the shared browser, cached on disk. `ready` is the selector that shows the real page has loaded (a card page's
+ * default; the product gallery uses its own), `marker` the text the saved HTML must contain.
+ */
+export async function getCached(url: string, page_: { ready?: string; marker?: string } = {}): Promise<string> {
+	const ready = page_.ready ?? '.full-card-information'
+	const marker = page_.marker ?? 'full-card-information'
 	const path = join(config.cacheDir, `${sha(url)}.html`)
 	if (!mustFetch(url)) {
 		try {
@@ -110,9 +116,9 @@ export async function getCached(url: string): Promise<string> {
 				try {
 					const resp = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 })
 					if (resp?.status() === 404) throw new Error(`404 ${url}`)
-					await page.waitForSelector('.full-card-information', { timeout: 15000 }).catch(() => {})
-					if (await page.$('.full-card-information')) return await page.content()
-					if (await isChallenge(page)) { await waitOutChallenge(page, url); continue }
+					await page.waitForSelector(ready, { timeout: 15000 }).catch(() => {})
+					if (await page.$(ready)) return await page.content()
+					if (await isChallenge(page)) { await waitOutChallenge(page, url, ready); continue }
 					if (resp?.status() === 403 || resp?.status() === 429) {
 						// blocked or rate limited, with a page we don't recognise: back off, then ask again
 						console.warn(`[fetch] ${resp.status()} at ${url}: backing off 30s`)
@@ -130,15 +136,15 @@ export async function getCached(url: string): Promise<string> {
 					await page.waitForTimeout(2000).catch(() => {})
 				}
 			}
-			if (lastErr && !(await page.$('.full-card-information').catch(() => null))) throw lastErr
+			if (lastErr && !(await page.$(ready).catch(() => null))) throw lastErr
 			return await page.content()
 		} finally {
 			await page.close()
 		}
 	})
 
-	if (!html.includes('full-card-information')) {
-		throw new Error(`No .full-card-information in ${url} (bot wall?)`)
+	if (!html.includes(marker)) {
+		throw new Error(`No ${ready} in ${url} (bot wall?)`)
 	}
 	await mkdir(dirname(path), { recursive: true })
 	await writeFile(path, html)
@@ -166,7 +172,7 @@ async function isChallenge(page: import('playwright').Page): Promise<boolean> {
 
 let challengeAnnounced = 0
 /** Waits for the page to turn into the real one. While it waits, whoever is at the browser window can solve the challenge. */
-async function waitOutChallenge(page: import('playwright').Page, url: string): Promise<void> {
+async function waitOutChallenge(page: import('playwright').Page, url: string, ready = '.full-card-information'): Promise<void> {
 	if (Date.now() - challengeAnnounced > 60_000) {
 		challengeAnnounced = Date.now()
 		console.warn(`[fetch] BOT CHALLENGE at ${url}: solve it in the browser window (tick \"I am human\"). Waiting up to ${CHALLENGE_WAIT_MS / 60000} minutes…`)
@@ -174,7 +180,7 @@ async function waitOutChallenge(page: import('playwright').Page, url: string): P
 	const until = Date.now() + CHALLENGE_WAIT_MS
 	while (Date.now() < until) {
 		await page.waitForTimeout(2000)
-		if (await page.$('.full-card-information')) { slowUntil = Date.now() + 5 * 60_000; console.log('[fetch] challenge cleared, continuing at a slower pace for 5 minutes'); return }
+		if (await page.$(ready)) { slowUntil = Date.now() + 5 * 60_000; console.log('[fetch] challenge cleared, continuing at a slower pace for 5 minutes'); return }
 		if (!(await isChallenge(page))) { slowUntil = Date.now() + 5 * 60_000; return }
 	}
 	throw new Error(`bot challenge not cleared within ${CHALLENGE_WAIT_MS / 60000} minutes: ${url}`)
