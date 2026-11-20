@@ -1,0 +1,26 @@
+[
+	{
+		"set": "sv03", "card": "062", "variant": { "type": "holo", "foil": "cosmos" }, "provider": "cardmarket", "id": null,
+		"why": "TCGdex gives Palafin's cosmos holo Frogadier's Cardmarket id (781858: Froakie 781857, Frogadier 781858, Pawniard 781859 run in card order); Palafin's own is not known"
+	},
+	{
+		"set": "sv03", "card": "066", "variant": { "type": "normal", "stamps": ["player-rewards-program"] }, "provider": "tcgplayer", "id": 538744,
+		"why": "TCGdex gives Tyranitar ex Toedscruel ex's Prize Pack product (538743); TCGCSV names 538744 \"Tyranitar ex - 066/197\""
+	},
+	{
+		"set": "sv03", "card": "164", "variant": { "type": "holo", "stamps": ["player-rewards-program"] }, "provider": "cardmarket", "id": null,
+		"why": "811161 looks like Town Store's (same 811xxx era as its TCGplayer 811245); Pidgeot ex's TCGplayer 538737 is an older Prize Pack product whose Cardmarket ids are 756xxx. Pidgeot ex's own is not known. Not confirmed (Cardmarket blocks lookups)"
+	},
+	{
+		"set": "sv03", "card": "196", "variant": { "type": "holo", "stamps": ["player-rewards-program"] }, "provider": "cardmarket", "id": 811161,
+		"why": "see sv03 164"
+	},
+	{
+		"set": "sve", "card": "002", "variant": { "type": "reverse", "foil": "cosmos", "stamps": ["player-rewards-program"] }, "provider": "tcgplayer", "id": null,
+		"why": "TCGplayer 651037 is \"Basic Fire Energy - 010 (Cosmos Holo)\" in TCGCSV's Prize Pack group: card 010's, not 002's (the two Fire Energy look alike by name)"
+	},
+	{
+		"set": "sve", "card": "010", "variant": { "type": "reverse", "foil": "cosmos", "stamps": ["player-rewards-program"] }, "provider": "tcgplayer", "id": 651037,
+		"why": "see sve 002"
+	}
+]

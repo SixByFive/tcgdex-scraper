@@ -139,7 +139,8 @@ export async function emitExperimental(opts: ExperimentalEmitOptions): Promise<E
 		if (extra?.name && !sameName(extra.name, name.en)) {
 			warn(`${label}: TCGdex has "${extra.name}" for this number, not "${name.en}"; its description and regulation mark were not used`)
 		} else if (extra) {
-			if (extra.regulationMark) {
+			// "None" is TCGdex's way of saying the card has no mark (My First Battle's last cards): nothing to write, nothing to warn about
+			if (extra.regulationMark && extra.regulationMark.trim().toLowerCase() !== 'none') {
 				// TCGdex sometimes returns it lowercase ("j"); the schema's marks are uppercase
 				const mark = extra.regulationMark.trim().toUpperCase()
 				if (schema.regulationMarks.includes(mark)) { out.regulationMark = mark; usedTcgdex = true }

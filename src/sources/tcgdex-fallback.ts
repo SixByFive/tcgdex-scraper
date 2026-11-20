@@ -41,16 +41,23 @@ export async function fillFromTcgdex(setId: string, opts: { only?: number[]; log
 	const log = opts.log ?? console.log
 	const dir = join(config.cacheDir, 'pokemon-com', setId)
 	await mkdir(dir, { recursive: true })
-	const have = new Set((await readdir(dir)).filter((f) => f.endsWith('.json')).map((f) => Number(f.replace('.json', ''))))
+	// the cache files: "031.json" for a numbered card, "Museum.json" for one whose id is only letters
+	const haveFiles = new Set((await readdir(dir)).filter((f) => f.endsWith('.json')).map((f) => f.replace('.json', '')))
 	const wanted = opts.only ? new Set(opts.only) : null
 
 	const listed = await listTcgdexCards(setId)
 	const written: number[] = [], notOnTcgdex: number[] = [], skipped: string[] = []
 	for (const { localId } of listed) {
-		// a lettered id (TG01, SV001) can't be stored under a number: not handled here
-		if (!/^\d+$/.test(localId)) { skipped.push(localId); continue }
-		const n = Number(localId)
-		if (have.has(n) || (wanted && !wanted.has(n))) continue
+		// a lettered id (TG01, SWSH061) is stored under its number, but only when asked for by number (`only`): a hole in pokemon.com's
+		// numbering of a promo set. Without that it could be mistaken for a plain card of the same number.
+		const lettered = localId.match(/^[A-Za-z]+(\d+)$/)
+		// An id of only letters ("Museum", the 30th Celebration's "B", "G", "R") can't be mistaken for another card and has no
+		// number: it is stored under its name, and only a full fill (no `only`) writes it.
+		const alphaOnly = /^[A-Za-z]+$/.test(localId)
+		if (!/^\d+$/.test(localId) && !(lettered && wanted) && !alphaOnly) { skipped.push(localId); continue }
+		const n = alphaOnly ? 0 : Number(lettered ? lettered[1] : localId)
+		const fileName = alphaOnly ? localId : String(n).padStart(3, '0')
+		if (haveFiles.has(fileName) || (wanted && (alphaOnly || !wanted.has(n)))) continue
 
 		const blocks: Partial<Record<Lang, ScrapedLocaleBlock>> = {}
 		const imageUrls: Partial<Record<Lang, string>> = {}
@@ -60,7 +67,7 @@ export async function fillFromTcgdex(setId: string, opts: { only?: number[]; log
 		for (const lang of LANGS) {
 			let card: TcgdexCard | null = null
 			try {
-				for (const form of [...new Set([localId, localId.padStart(3, '0'), String(n)])]) { card = await fetchCard(setId, form, lang, false); if (card) break }
+				for (const form of [...new Set(alphaOnly ? [localId] : [localId, localId.padStart(3, '0'), String(n)])]) { card = await fetchCard(setId, form, lang, false); if (card) break }
 			} catch (err) {
 				failedLangs.push(lang)
 				log(`[tcgdex] ${setId}/${localId} ${lang}: ${(err as Error).message}`)
@@ -79,7 +86,8 @@ export async function fillFromTcgdex(setId: string, opts: { only?: number[]; log
 			// the id as TCGdex writes it ("1" in My First Battle, "031" in SVP): it is also the repo's file name and card id
 			localId,
 			number: n,
-			printedNumber: null,
+			// a lettered id is also the number printed on the card, and how TCGTracking numbers its product
+			printedNumber: /^[A-Za-z]/.test(localId) ? localId : null,
 			total: Number((en as { set?: { cardCount?: { official?: number } } }).set?.cardCount?.official) || 0,
 			rarity: raw && raw.toLowerCase() !== 'none' ? raw : null,
 			hp: en.hp ?? null,
@@ -99,7 +107,7 @@ export async function fillFromTcgdex(setId: string, opts: { only?: number[]; log
 			imageUrls
 		}
 		const scraped: ScrapedCard = { scrapedAt: new Date().toISOString(), sourceSlug: 'tcgdex', structural, locales: blocks, absentLangs, failedLangs }
-		await writeFile(join(dir, `${String(n).padStart(3, '0')}.json`), JSON.stringify(scraped, null, 2))
+		await writeFile(join(dir, `${fileName}.json`), JSON.stringify(scraped, null, 2))
 		written.push(n)
 	}
 	if (skipped.length) log(`[tcgdex] ${setId}: ${skipped.length} cards with lettered ids not handled (${skipped.slice(0, 5).join(', ')})`)

@@ -193,6 +193,7 @@ export async function reparseSet(slug: string, setId: string): Promise<{ cards: 
 	for (const f of (await readdir(dir)).filter((f) => f.endsWith('.json')).sort()) {
 		const file = join(dir, f)
 		const card = JSON.parse(await readFile(file, 'utf8')) as ScrapedCard
+		if (card.sourceSlug === 'tcgdex') continue // built from the API, there are no pages to re-read
 		const n = Number(f.replace('.json', ''))
 		const before = JSON.stringify([card.structural.retreat, Object.values(card.locales).map((l) => l?.abilities)])
 		for (const lang of Object.keys(card.locales) as Lang[]) {

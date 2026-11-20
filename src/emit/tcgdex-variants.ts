@@ -46,6 +46,10 @@ export function mergeTcgdexVariants(existing: VariantOut[] | undefined, fromTcgd
 			!theirs.has(idOf(x)) && ((td.tcgplayer && x.prices.tcgplayer === td.tcgplayer) || (!td.tcgplayer && td.cardmarket && x.prices.cardmarket === td.cardmarket)))
 		if (relabel) {
 			relabel.type = v.type; relabel.foil = v.foil; relabel.size = v.size; relabel.stamps = v.stamps
+			// and what TCGTracking lacks of the product's ids (Cardmarket's for the new mep promos), as for a variant both list
+			relabel.prices.cardmarket ??= td.cardmarket
+			relabel.prices.tcgplayer ??= td.tcgplayer
+			relabel.prices.cardtrader ??= td.cardtrader
 			continue
 		}
 		// TCGdex gives Cardmarket and TCGplayer ids; the TCGTracking product with that TCGplayer id knows the CardTrader one

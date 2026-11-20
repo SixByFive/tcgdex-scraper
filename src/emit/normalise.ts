@@ -47,7 +47,8 @@ export const collectorKey = (printed: string | number | null | undefined): strin
 	return /^\d+$/.test(head) ? String(Number(head)) : alphaNumber(head)
 }
 export const cardKey = (card: ScrapedCard): string | undefined =>
-	alphaNumber(card.structural.printedNumber) ?? collectorKey(card.structural.number)
+	alphaNumber(card.structural.printedNumber)
+		?? (card.sourceSlug === 'tcgdex' && /^[A-Za-z]+$/.test(String(card.structural.localId)) ? String(card.structural.localId).toUpperCase() : collectorKey(card.structural.number))
 
 export const toType = (t: EnergyTypes | string): PokemonType | undefined => ci(TYPES, t)
 

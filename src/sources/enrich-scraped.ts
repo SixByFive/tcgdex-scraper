@@ -96,7 +96,8 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 				const names = namesAt.get(cardKey(card) ?? '')
 				if (!names) continue
 				checked++
-				if (!names.includes(nameKey(card.locales.en?.name ?? ''))) disagree++
+				// ("Basic Fire Energy" and "Fire Energy" are the same card: Mega Evolution Energy's products say Basic, TCGdex doesn't)
+					if (!names.some((n) => sameCardName(n, card.locales.en?.name ?? ''))) disagree++
 			}
 			if (checked && disagree / checked > 0.2) {
 				warn(`${disagree} of ${checked} product numbers belong to a different card (a reprint set?): matching variants by card name instead`)
@@ -137,6 +138,23 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 
 	let withVariants = 0, withText = 0, withMark = 0, fromTcgdex = 0, fromTcgcsv = 0, keptEarlier = 0
 	const now = new Date().toISOString()
+	// the TCGplayer ids the cards of every other scraped set hold, to tell an id that is merely outside this set's group from one
+	// that is another set's card's
+	const otherSets = new Map<number, string>()
+	const cacheRoot = join(config.cacheDir, 'pokemon-com')
+	for (const s of await readdir(cacheRoot)) {
+		if (s === opts.setId) continue
+		let files: string[]
+		try { files = (await readdir(join(cacheRoot, s))).filter((f) => f.endsWith('.json')) } catch { continue }
+		for (const f of files) {
+			try {
+				const c = JSON.parse(await readFile(join(cacheRoot, s, f), 'utf8')) as ScrapedCard
+				for (const v of c.variants ?? []) if (v.prices.tcgplayer && !otherSets.has(v.prices.tcgplayer)) otherSets.set(v.prices.tcgplayer, `${s}-${c.structural.localId}`)
+			} catch {}
+		}
+	}
+	const idFixes: { set: string; card: string; variant: { type: string; stamps?: string[]; foil?: string }; provider: 'tcgplayer' | 'cardmarket' | 'cardtrader'; id: number | null }[] =
+		existsSync('registry/id-fixes.json') ? JSON.parse(await readFile('registry/id-fixes.json', 'utf8')) : []
 	const claimed = { tcgplayer: new Map<number, string>(), cardmarket: new Map<number, string>(), cardtrader: new Map<number, string>() }
 	const schema = await loadSchema(repo)
 	for (const { file, card } of cards) {
@@ -153,14 +171,16 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 			// that card's ids by mistake (TCGdex gave My First Battle's Charmander the Bulbasaur product). The variant stays, its ids go.
 			const mine = nameKey(enName ?? '')
 			e.variants = e.variants.map((tv) => {
-				// a product that isn't in this set's TCGTracking group is another set's (the Classic Collection's stamped Reshiram has the
-				// Celebrations Reshiram's ids)
-				if (tv.tcgplayer && productNames.size && !productNames.has(tv.tcgplayer)) {
-					warn(`${opts.setId}-${tcgdexLocalId(card)}: TCGdex gives ${enName} TCGplayer product ${tv.tcgplayer}, which is not in TCGTracking's group ${groupId}: ids dropped`)
+				// a product outside this set's TCGTracking group that a card of ANOTHER set already holds is that card's (the Classic
+				// Collection's stamped Reshiram has the Celebrations Reshiram's ids). A product merely outside the group can be right:
+				// a promo's stamped printing is listed under another group.
+				const foreign = tv.tcgplayer && productNames.size && !productNames.has(tv.tcgplayer) ? otherSets.get(tv.tcgplayer) : undefined
+				if (foreign) {
+					warn(`${opts.setId}-${tcgdexLocalId(card)}: TCGdex gives ${enName} TCGplayer product ${tv.tcgplayer}, which ${foreign} holds: ids dropped`)
 					return { ...tv, tcgplayer: undefined, cardmarket: undefined, cardtrader: undefined }
 				}
 				const owner = tv.tcgplayer ? productNames.get(tv.tcgplayer) : undefined
-				if (owner && owner !== mine && setNames.has(owner)) {
+				if (owner && owner !== mine && !sameCardName(owner, enName ?? '') && setNames.has(owner)) {
 					warn(`${opts.setId}-${tcgdexLocalId(card)}: TCGdex gives ${enName} TCGplayer product ${tv.tcgplayer}, which TCGTracking names "${owner}" (another card of the set): ids dropped`)
 					return { ...tv, tcgplayer: undefined, cardmarket: undefined, cardtrader: undefined }
 				}
@@ -175,6 +195,15 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 		if (prize) {
 			const r = applyPrizePack(list ?? [], card, prize, schema, warn, `${opts.setId}-${tcgdexLocalId(card)}`)
 			if (r.changed) { list = r.list; csvChanged = r.changed; fromTcgcsv += r.changed }
+		}
+		// hand-checked corrections (registry/id-fixes.json) for ids a source gives the wrong card; they win over every source and
+		// are applied before the one-card-per-id check below, so the right card keeps the id
+		for (const fix of idFixes) {
+			if (fix.set !== opts.setId || fix.card.replace(/^0+(?=\d)/, '') !== tcgdexLocalId(card).replace(/^0+(?=\d)/, '')) continue
+			const v = (list ?? []).find((x) => x.type === fix.variant.type && (x.foil ?? undefined) === fix.variant.foil && [...(x.stamps ?? [])].sort().join() === [...(fix.variant.stamps ?? [])].sort().join())
+			if (!v) { warn(`${opts.setId}-${fix.card}: id fix for ${fix.provider} ${fix.id ?? '(none)'} found no ${fix.variant.type} variant: not applied`); continue }
+			if (fix.id === null) delete v.prices[fix.provider]
+			else v.prices[fix.provider] = fix.id
 		}
 		// a provider id belongs to one card: when two cards claim one (identical cards such as the two Fire Energy of SVE share a
 		// Player Rewards product), the first keeps it and the later one is left without, so nothing is attributed by guesswork
