@@ -8,7 +8,8 @@ const link = {
 	tcgplayer: (id) => `https://www.tcgplayer.com/product/${id}`,
 	cardmarket: (id) => `https://www.cardmarket.com/en/Pokemon/Products?idProduct=${id}`
 }
-const variantKey = (v) => [v.exclusive, v.artwork].filter(Boolean).join('-') || 'standard'
+const promoKey = (ps) => (ps ?? []).map((p) => typeof p === 'string' ? p : p.oneOf ? [...p.oneOf].sort().join('+') : p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')).sort().join('+')
+const variantKey = (v) => [v.exclusive, v.artwork, promoKey(v.contents?.promos)].filter(Boolean).join('-') || 'standard'
 const post = (url, body) => fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body ?? {}) }).then((r) => r.json())
 
 export async function renderProducts(app, setId, { closeStream, setTopbarStatus }) {
@@ -57,7 +58,17 @@ export async function renderProducts(app, setId, { closeStream, setTopbarStatus 
 		const leftOut = new Set(data.fixes.filter((f) => f.op === 'exclude').map((f) => f.product))
 		const files = data.built // every product the scraper built, including those a fix leaves out
 		const cmMissing = (id) => reviewOf(id).members.some((m) => !m.cardmarketId)
-		const line = (c) => c.product ? `<span class="mono">${esc(c.product)}</span>` : c.card ? `<span class="mono">${esc(c.card)}</span> ${esc(cardName(c.card))}` : c.oneOf ? `one of ${c.oneOf.map((x) => `<span class="mono">${esc(x)}</span> ${esc(cardName(x))}`).join(' / ')}` : esc(c.item?.en ?? '')
+		const promoText = (p) => typeof p === 'string' ? `<span class="mono">${esc(p)}</span> ${esc(cardName(p))}` : p.oneOf ? `one of ${p.oneOf.map((x) => `<span class="mono">${esc(x)}</span> ${esc(cardName(x))}`).join(' / ')}` : `${esc(p.name)} <span class="muted small">(card not in the data)</span>`
+		/** The contents object as lists, one per kind. */
+		const contentsHtml = (c) => {
+			if (!c) return ''
+			const rows = []
+			for (const [kind, label] of [['boosterPacks', 'Booster packs'], ['products', 'Products']]) for (const [id, v] of Object.entries(c[kind] ?? {})) rows.push(`<li><span class="muted">${v.quantity}× ${label}</span> <span class="mono">${esc(id)}</span></li>`)
+			for (const p of c.promos ?? []) rows.push(`<li><span class="muted">Promo</span> ${promoText(p)}</li>`)
+			for (const it of c.items ?? []) rows.push(`<li><span class="muted">${it.quantity}×</span> ${esc(it.item?.en ?? '')}</li>`)
+			return rows.length ? `<ul class="pr-contents">${rows.join('')}</ul>` : ''
+		}
+		const countOf = (c) => c ? Object.keys(c.boosterPacks ?? {}).length + Object.keys(c.products ?? {}).length + (c.promos ?? []).length + (c.items ?? []).length : 0
 		const chip = (cls, t) => `<span class="chip ${cls}"><span class="chip-dot"></span>${esc(t)}</span>`
 
 		main.innerHTML = `
@@ -74,7 +85,7 @@ export async function renderProducts(app, setId, { closeStream, setTopbarStatus 
 			</div>
 			<table class="variant-table pr-table"><thead><tr><th>Product</th><th>Type</th><th class="num">Variants</th><th class="num">Contents</th><th>Checks</th></tr></thead><tbody>
 				${files.map((p) => `<tr class="pr-row" data-id="${esc(p.id)}"><td><div>${esc(p.name.en)}</div><div class="muted small mono">${esc(p.id)}</div></td><td>${esc(p.type)}</td>
-					<td class="num">${p.variants.length}</td><td class="num">${p.contents?.length ?? 0}</td>
+					<td class="num">${p.variants.length}</td><td class="num">${countOf(p.contents)}</td>
 					<td>${leftOut.has(p.id) ? chip('off', 'left out') : ''}${fixesFor(p.id).filter((f) => f.op !== 'exclude').length ? chip('warn', 'fixed') : ''}${cmMissing(p.id) ? chip('warn', 'no Cardmarket id') : ''}${unlinkedFor(p.id).length ? chip('info', 'promo not linked') : ''}${data.inRepo.includes(p.id) ? chip('ok', 'in repo') : ''}</td></tr>
 					<tr class="pr-detail" data-for="${esc(p.id)}" hidden><td colspan="5"></td></tr>`).join('')}
 			</tbody></table>`
@@ -119,11 +130,11 @@ export async function renderProducts(app, setId, { closeStream, setTopbarStatus 
 								<td>${ct ? `<span class="mono">${ct}</span>` : '–'}<button class="btn btn-ghost pr-id" data-v="${esc(m.variant)}" data-p="cardtrader">edit</button></td></tr>`
 						}).join('')}</tbody></table>
 						<div class="section-label" style="margin-top:14px">Contents${JSON.stringify(final.contents) === JSON.stringify(p.contents) ? '' : ' (corrected)'}</div>
-						${final.contents?.length ? `<ul class="pr-contents">${final.contents.map((c) => `<li><span class="muted">${c.quantity}×</span> ${line(c)}</li>`).join('')}</ul>` : '<div class="muted small">None: the description has no list.</div>'}
-						${final.variants.some((v) => v.contents) ? `<div class="muted small">Variants change these: ${final.variants.filter((v) => v.contents).map((v) => `${esc(variantKey(v))} → ${v.contents.filter((c) => c.quantity > 0).map(line).join(', ')}`).join('; ')}</div>` : ''}
+						${contentsHtml(final.contents) || '<div class="muted small">None: the description has no list.</div>'}
+						${final.variants.some((v) => v.contents) ? `<div class="section-label" style="margin-top:10px">What the versions change</div>${final.variants.filter((v) => v.contents).map((v) => `<div class="muted small"><span class="mono">${esc(variantKey(v))}</span></div>${contentsHtml(v.contents)}`).join('')}` : ''}
 						${unlinkedFor(p.id).map((u) => `<div class="muted small">⚠ ${esc(u)}</div>`).join('')}
 						<details style="margin-top:8px"><summary class="muted small">Edit contents (JSON)</summary>
-							<textarea class="input pr-json" rows="10" spellcheck="false">${esc(JSON.stringify(final.contents ?? [], null, 1))}</textarea>
+							<textarea class="input pr-json" rows="10" spellcheck="false">${esc(JSON.stringify(final.contents ?? {}, null, 1))}</textarea>
 							<div class="toolbar"><button class="btn btn-primary pr-save-contents">Save as a correction</button><span class="muted small pr-msg"></span></div></details>
 					</div>
 					<div>
@@ -151,7 +162,7 @@ export async function renderProducts(app, setId, { closeStream, setTopbarStatus 
 			cell.querySelector('.pr-save-contents').addEventListener('click', () => {
 				let value
 				try { value = JSON.parse(cell.querySelector('.pr-json').value) } catch (err) { cell.querySelector('.pr-msg').textContent = `Not valid JSON: ${err.message}`; return }
-				if (!Array.isArray(value) || value.some((c) => !c || typeof c.quantity !== 'number' || ['product', 'card', 'item', 'oneOf'].filter((k) => k in c).length !== 1)) { cell.querySelector('.pr-msg').textContent = 'Each line needs a quantity and exactly one of product, card, item or oneOf.'; return }
+				if (!value || Array.isArray(value) || typeof value !== 'object' || Object.keys(value).some((x) => !['boosterPacks', 'products', 'promos', 'items'].includes(x))) { cell.querySelector('.pr-msg').textContent = 'Contents is an object with boosterPacks, products, promos and items.'; return }
 				fix({ product: p.id, op: 'contents', value })
 			})
 			cell.querySelector('.pr-save-meta').addEventListener('click', () => {

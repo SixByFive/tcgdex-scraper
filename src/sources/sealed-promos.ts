@@ -11,20 +11,20 @@ import { loadCatalogue } from './cardmarket-catalogue.ts'
  * the right one is the one Cardmarket added to its catalogue at the same time as the product (promos and the product that holds
  * them are listed together). A name with one candidate is taken; with several, only a clear nearest-in-time winner is.
  */
-export interface PromoCard { id: string; name: string; added?: number; tcg?: number[]; own?: boolean; rarity?: string }
+export interface PromoCard { id: string; name: string; added?: number; tcg?: number[]; rarity?: string }
 
 const ms = (s: string | undefined) => (s ? Date.parse(s.replace(' ', 'T') + 'Z') : undefined)
 
-export async function loadPromoCards(promoSets: string[], ownSet?: string): Promise<PromoCard[]> {
+export async function loadPromoCards(promoSets: string[]): Promise<PromoCard[]> {
 	const catalogue = await loadCatalogue()
 	const out: PromoCard[] = []
-	for (const set of [...promoSets, ...(ownSet ? [ownSet] : [])]) {
+	for (const set of promoSets) {
 		const dir = join(config.cacheDir, 'pokemon-com', set)
 		if (!existsSync(dir)) continue
 		for (const f of readdirSync(dir).filter((f) => f.endsWith('.json'))) {
 			const c = JSON.parse(readFileSync(join(dir, f), 'utf8'))
 			const dates = (c.variants ?? []).map((v: any) => ms((catalogue.get(v.prices?.cardmarket) as any)?.dateAdded)).filter((d: unknown): d is number => typeof d === 'number')
-			out.push({ id: `${set}-${cardLocalId(c)}`, name: c.locales?.en?.name ?? '', added: dates.length ? Math.min(...dates) : undefined, tcg: (c.variants ?? []).map((v: any) => v.prices?.tcgplayer).filter(Boolean), rarity: String(c.structural?.rarity ?? ''), own: set === ownSet && !promoSets.includes(set) })
+			out.push({ id: `${set}-${cardLocalId(c)}`, name: c.locales?.en?.name ?? '', added: dates.length ? Math.min(...dates) : undefined, tcg: (c.variants ?? []).map((v: any) => v.prices?.tcgplayer).filter(Boolean), rarity: String(c.structural?.rarity ?? '') })
 		}
 	}
 	return out
@@ -44,9 +44,7 @@ export interface PromoPick { id?: string; ids?: string[]; why?: string }
 /** `ref`: when the product was added to Cardmarket (or its set's release), in ms. */
 function pickOne(name: string, cards: PromoCard[], ref: number | undefined, refTcg?: number, rarity?: RegExp): PromoPick {
 	const want = looseName(name)
-	// a promo of that name first; a foil copy of the set's own card ("Foil card featuring Kadabra" in a 151 collection) otherwise
-	const named = cards.filter((c) => looseName(c.name) === want)
-	const pool = named.some((c) => !c.own) ? named.filter((c) => !c.own) : named
+	const pool = cards.filter((c) => looseName(c.name) === want)
 	const cand = rarity && pool.some((c) => rarity.test(c.rarity ?? '')) ? pool.filter((c) => rarity.test(c.rarity ?? '')) : pool
 	if (!cand.length) return { why: `no promo card named ${name}` }
 	if (cand.length === 1) return { id: cand[0]!.id }

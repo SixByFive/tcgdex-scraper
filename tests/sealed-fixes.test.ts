@@ -4,8 +4,8 @@ import type { ProductFile } from '../src/sources/sealed.ts'
 
 const product = (over: Partial<ProductFile> = {}): ProductFile => ({
 	id: 'x-box', type: 'booster-box', name: { en: 'X Box' }, set: 'x',
-	contents: [{ product: 'x-pack', quantity: 36 }],
-	variants: [{ prices: { tcgplayer: 1, cardmarket: 2 } }, { exclusive: 'pokemon-center', prices: { tcgplayer: 3 } }],
+	contents: { boosterPacks: { 'x-pack': { quantity: 36 } } },
+	variants: [{ prices: { tcgplayer: 1, cardmarket: 2 } }, { exclusive: 'pokemon-center', prices: { tcgplayer: 3 }, contents: { boosterPacks: { 'x-pack': { quantity: 40 } }, items: [{ item: { en: 'Dice' }, quantity: 1 }] } }],
 	provenance: { source: 'tcgtracking', validation: 'unverified' },
 	...over
 })
@@ -16,9 +16,9 @@ describe('product fixes', () => {
 	test('type, name and contents replace what was built; the input is not changed', () => {
 		const built = [product()]
 		const { files, applied } = applyFixes(built, [
-			{ ...base, op: 'type', value: 'case' }, { ...base, op: 'name', value: 'Corrected' }, { ...base, op: 'contents', value: [{ item: { en: 'Dice' }, quantity: 6 }] }
+			{ ...base, op: 'type', value: 'case' }, { ...base, op: 'name', value: 'Corrected' }, { ...base, op: 'contents', value: { items: [{ item: { en: 'Dice' }, quantity: 6 }] } }
 		])
-		expect(files[0]).toMatchObject({ type: 'case', name: { en: 'Corrected' }, contents: [{ item: { en: 'Dice' }, quantity: 6 }] })
+		expect(files[0]).toMatchObject({ type: 'case', name: { en: 'Corrected' }, contents: { items: [{ item: { en: 'Dice' }, quantity: 6 }] } })
 		expect(built[0]!.type).toBe('booster-box')
 		expect(applied['x-box']).toHaveLength(3)
 	})
@@ -32,10 +32,11 @@ describe('product fixes', () => {
 		expect((files[0]!.variants[1] as any).prices).toEqual({ tcgplayer: 3, cardmarket: 9 })
 	})
 
-	test('a product that is left out is dropped, and so are the contents lines that name it', () => {
+	test('a product that is left out is dropped, and so are the contents entries that name it, in the product and its variants', () => {
 		const { files, applied } = applyFixes([product(), pack], [{ set: 'x', product: 'x-pack', op: 'exclude' }])
 		expect(files.map((f) => f.id)).toEqual(['x-box'])
 		expect(files[0]!.contents).toBeUndefined()
+		expect((files[0]!.variants[1] as any).contents).toEqual({ items: [{ item: { en: 'Dice' }, quantity: 1 }] })
 		expect(applied['x-box']![0]).toContain('left out')
 	})
 

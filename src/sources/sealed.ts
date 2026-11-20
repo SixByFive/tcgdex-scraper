@@ -14,14 +14,41 @@ import { fetchSealed } from '../util/tcgtracking-open.ts'
 export interface Tracked { id: number; name: string; number?: string | null; ext_data?: { CardText?: string }; cardmarket_id?: number | null; cardtrader_id?: number | null; descFrom?: string }
 
 type Content = { oneOf: string[]; quantity: number } | { product: string; quantity: number } | { card: string; quantity: number } | { item: { en: string }; quantity: number }
+type PromoOut = string | { oneOf: string[] } | { name: string }
+/** What a product holds, by kind (schemas/product.ts in the Experimental repo). */
+export interface ContentsOut {
+	boosterPacks?: Record<string, { quantity: number }>
+	products?: Record<string, { quantity: number }>
+	promos?: PromoOut[]
+	items?: { item: { en: string }; quantity: number }[]
+}
+
 export interface ProductFile {
 	id: string; type: string; name: { en: string }; set: string; releaseDate?: string
-	contents?: Content[]
+	contents?: ContentsOut
 	variants: Record<string, unknown>[]
 	provenance: { source: string; validation: 'unverified'; limitations?: string[] }
 }
 
 const slug = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+
+/** The part of a variant's id its promos give; the same as the Experimental repo's promoKey. */
+export const promoKey = (promos: PromoOut[] | undefined): string =>
+	(promos ?? []).map((p) => (typeof p === 'string' ? p : 'oneOf' in p ? [...p.oneOf].sort().join('+') : slug(p.name))).sort().join('+')
+/** A variant's id: its attributes, then its promos; none of either is "standard". */
+export const variantKeyOf = (v: Record<string, unknown>): string => [v.exclusive, v.artwork, promoKey((v.contents as ContentsOut | undefined)?.promos)].filter(Boolean).join('-') || 'standard'
+
+/** The lines the description was read into, sorted into the kinds a product's contents have. */
+export function toContents(lines: Content[] | undefined, packId: string): ContentsOut | undefined {
+	const out: ContentsOut = {}
+	for (const c of lines ?? []) {
+		if ('product' in c) { const kind = c.product === packId ? 'boosterPacks' : 'products'; (out[kind] ??= {})[c.product] = { quantity: c.quantity } }
+		else if ('card' in c) for (let n = 0; n < c.quantity; n++) (out.promos ??= []).push(c.card)
+		else if ('oneOf' in c) for (let n = 0; n < c.quantity; n++) (out.promos ??= []).push({ oneOf: c.oneOf })
+		else (out.items ??= []).push({ item: c.item, quantity: c.quantity })
+	}
+	return Object.keys(out).length ? out : undefined
+}
 const WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 }
 const num = (s: string): number | undefined => (/^\d+$/.test(s) ? Number(s) : WORDS[s.toLowerCase()])
 
@@ -142,6 +169,8 @@ export function buildProducts(setId: string, setName: string, released: string |
 		g.members.push({ p, parsed })
 		groups.set(key, g)
 	}
+	const packArt = new Map<string, number>()
+	for (const k of groups.keys()) { const m = k.match(/^((?:sleeved-)?booster-pack)-art-bundle-set-of-(\d+)$/); if (m) packArt.set(m[1]!, Number(m[2])) }
 	const ids = new Set([...groups.keys()].map((k) => `${pfx}-${k}`))
 	const files: ProductFile[] = []
 	const review: Record<string, ProductReview> = {}
@@ -149,14 +178,19 @@ export function buildProducts(setId: string, setName: string, released: string |
 		const id = `${pfx}-${key}`
 		const std = g.members.find((m) => !m.parsed.exclusive && !m.parsed.artwork) ?? g.members.find((m) => !m.parsed.exclusive) ?? g.members[0]!
 		const variants: Record<string, unknown>[] = []
+		// a name in brackets is the promo card the version holds (a blister, or anything whose text names a promo): the version is told apart by its promos, not an attribute; else it is a pack or box artwork
+		const promoish = g.type === 'blister' || /promo/i.test(std.p.ext_data?.CardText ?? '')
 		const priceOf = (p: Tracked) => ({ tcgplayer: p.id, ...(p.cardmarket_id ? { cardmarket: p.cardmarket_id } : {}), ...(p.cardtrader_id ? { cardtrader: p.cardtrader_id } : {}) })
 		// "standard" first, then the others in a stable order
-		for (const m of [std, ...g.members.filter((x) => x !== std).sort((a, b) => a.p.id - b.p.id)]) {
+		const order = [std, ...g.members.filter((x) => x !== std).sort((a, b) => a.p.id - b.p.id)]
+		for (const m of order) {
 			const attrs: Record<string, unknown> = {}
 			if (m.parsed.exclusive) attrs.exclusive = m.parsed.exclusive
-			if (m.parsed.artwork) attrs.artwork = m.parsed.artwork
+			if (m.parsed.artwork && !promoish) attrs.artwork = m.parsed.artwork
 			variants.push({ ...attrs, prices: priceOf(m.p) })
 		}
+		// the art bundle says how many pack artworks there are ("Set of 4"); the packs are priced as one product, so those variants carry no ids
+		for (let k = 0; k < (packArt.get(key) ?? 0); k++) variants.push({ artwork: String.fromCharCode(97 + k) })
 			const refOf = (p: Tracked): number | undefined => {
 				const c = p.cardmarket_id ? (cm.find((x) => x.idProduct === p.cardmarket_id) as { dateAdded?: string } | undefined) : undefined
 				const d = c?.dateAdded ? Date.parse(c.dateAdded.replace(' ', 'T') + 'Z') : released ? Date.parse(released) : undefined
@@ -185,20 +219,23 @@ export function buildProducts(setId: string, setName: string, released: string |
 					else promoUnlinked.push(`${id}: ${pick.why}`)
 				}
 			}
-			if (promoCards.length && contents) {
-				const text = std.p.ext_data?.CardText
-				const promoItem = contents.findIndex((c) => 'item' in c && /^promo card$|promo(?:tional)? .*card/i.test(c.item.en))
-				const artworked = g.members.filter((m) => m.parsed.artworkName)
-				if (promoItem >= 0 && artworked.length === g.members.length && g.members.length) {
-					// a promo per artwork: each variant says its own card and drops the generic line
-					for (const [i, m] of [std, ...g.members.filter((x) => x !== std).sort((a, b) => a.p.id - b.p.id)].entries()) {
-						const pick = pickPromo(m.parsed.artworkName!, promoCards, refOf(m.p), m.p.id)
-						const got = pick.id ? [pick.id] : pick.ids
-						if (got) { variants[i]!.contents = [...got.map((card) => ({ card, quantity: 1 })), { item: { en: (contents[promoItem] as { item: { en: string } }).item.en }, quantity: 0 }]; promoLinked.push(`${id} [${m.parsed.artworkName}] -> ${got.join(', ')}`) }
-						else promoUnlinked.push(`${id} [${m.parsed.artworkName}]: ${pick.why}`)
-					}
-				} else if (promoItem >= 0) {
-					const name = promoNameFromText(text)
+			const genericPromo = () => contents?.findIndex((c) => 'item' in c && /^promo card$|promo(?:tional)? .*card/i.test(c.item.en)) ?? -1
+			const bracketed = promoish ? order.map((m, idx) => ({ m, idx })).filter(({ m }) => m.parsed.artworkName) : []
+			if (bracketed.length) {
+				// a promo per version: each variant lists its own card (or only the Pokémon's name when the card is not in the dataset)
+				for (const { m, idx } of bracketed) {
+					const pick = promoCards.length ? pickPromo(m.parsed.artworkName!, promoCards, refOf(m.p), m.p.id) : { why: 'no promo set to look in' }
+					const got = pick.id ? [pick.id] : pick.ids
+					variants[idx]!.contents = { promos: got ?? [{ name: m.parsed.artworkName! }] }
+					if (got) promoLinked.push(`${id} [${m.parsed.artworkName}] -> ${got.join(', ')}`)
+					else promoUnlinked.push(`${id} [${m.parsed.artworkName}]: ${pick.why}`)
+				}
+				const g0 = genericPromo()
+				if (contents && g0 >= 0) contents.splice(g0, 1) // every version names its own promo, so the product does not list a generic one
+			} else if (promoCards.length && contents) {
+				const promoItem = genericPromo()
+				if (promoItem >= 0) {
+					const name = promoNameFromText(std.p.ext_data?.CardText)
 					if (name) {
 						const pick = pickPromo(name, promoCards, refOf(std.p), std.p.id)
 						const got = pick.id ? [pick.id] : pick.ids
@@ -214,17 +251,26 @@ export function buildProducts(setId: string, setName: string, released: string |
 				const j = contents.findIndex((x, k) => k < i && same(x))
 				if (j >= 0) { contents[j]!.quantity = Math.max(contents[j]!.quantity, c.quantity); contents.splice(i, 1) }
 			}
+			const seenVersion = new Set<string>()
+			for (let i = 0; i < variants.length; i++) {
+				const k = variantKeyOf(variants[i]!)
+				if (!seenVersion.has(k)) { seenVersion.add(k); continue }
+				const m = order[i]
+				if (m) skipped.push({ id: m.p.id, name: m.p.name, why: `the same version as another of ${id} (${k}): left out` })
+				variants.splice(i, 1); order.splice(i, 1); i--
+			}
+			const contentsOut = toContents(contents, `${pfx}-booster-pack`)
 			review[id] = {
 				descriptionFrom: std.p.descFrom ?? 'TCGTracking',
 				description: std.p.ext_data?.CardText && std.p.ext_data.CardText !== 'undefined' ? std.p.ext_data.CardText : undefined,
-				members: [std, ...g.members.filter((x) => x !== std).sort((a, b) => a.p.id - b.p.id)].map((m) => {
+				members: order.map((m, idx) => {
 					const c = m.p.cardmarket_id ? cm.find((x) => x.idProduct === m.p.cardmarket_id) : undefined
-					return { variant: [m.parsed.exclusive, m.parsed.artwork].filter(Boolean).join('-') || 'standard', tcgplayerId: m.p.id, tcgplayerName: m.p.name, ...(m.p.cardmarket_id ? { cardmarketId: m.p.cardmarket_id, cardmarketName: c?.name, cardmarketHow: filledBy.has(m.p.id) ? 'name match' as const : 'TCGTracking' as const } : {}), ...(m.p.cardtrader_id ? { cardtraderId: m.p.cardtrader_id } : {}) }
+					return { variant: variantKeyOf(variants[idx]!), tcgplayerId: m.p.id, tcgplayerName: m.p.name, ...(m.p.cardmarket_id ? { cardmarketId: m.p.cardmarket_id, cardmarketName: c?.name, cardmarketHow: filledBy.has(m.p.id) ? 'name match' as const : 'TCGTracking' as const } : {}), ...(m.p.cardtrader_id ? { cardtraderId: m.p.cardtrader_id } : {}) }
 				})
 			}
 			files.push({
 			id, type: g.type, name: { en: `${setName} ${g.base}` }, set: setId, ...(released ? { releaseDate: released } : {}),
-			...(contents ? { contents } : {}), variants,
+			...(contentsOut ? { contents: contentsOut } : {}), variants,
 			provenance: { source: 'tcgtracking', validation: 'unverified', limitations: ['contents are read from the retailer description; Cardmarket ids matched by product name; promo cards matched by the Pokémon named in the description and when the promo was listed (unverified)'] }
 		})
 	}
@@ -248,7 +294,7 @@ export async function sealedForSet(setId: string, setName: string, group: number
 	const set = await fetchSealed(group)
 	const sealed = (set.products as unknown as Tracked[]).filter((p) => !p.number && !/^code card/i.test(p.name))
 	const cm = opts.cmExpansion ? (await loadSealedCatalogue()).filter((c) => c.idExpansion === opts.cmExpansion) : []
-	const built = buildProducts(setId, setName, set.set_released ?? undefined, sealed, cm, opts.promoSets?.length ? await loadPromoCards(opts.promoSets, setId) : [])
+	const built = buildProducts(setId, setName, set.set_released ?? undefined, sealed, cm, opts.promoSets?.length ? await loadPromoCards(opts.promoSets) : [])
 	const dir = join(repoIntl, 'products', fileSafe(setName))
 	if (opts.write) {
 		await mkdir(dir, { recursive: true })

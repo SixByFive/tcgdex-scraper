@@ -3,7 +3,7 @@ import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { defaultRepo, fileSafe, intlDir, listSets } from '../util/experimental.ts'
 import { loadSealedCatalogue } from './cardmarket-sealed.ts'
-import { buildProducts, productSource, type BuildResult, type ProductFile, type Tracked } from './sealed.ts'
+import { buildProducts, productSource, variantKeyOf, type BuildResult, type ProductFile, type Tracked } from './sealed.ts'
 import { loadPromoCards } from './sealed-promos.ts'
 import { fetchGroup } from './tcgcsv.ts'
 
@@ -28,7 +28,7 @@ export type ProductFix =
 	| { set: string; product: string; op: 'exclude'; why?: string }
 	| { set: string; product: string; op: 'type'; value: string; why?: string }
 	| { set: string; product: string; op: 'name'; value: string; why?: string }
-	| { set: string; product: string; op: 'contents'; value: unknown[]; why?: string }
+	| { set: string; product: string; op: 'contents'; value: Record<string, unknown>; why?: string }
 	| { set: string; product: string; op: 'price'; variant: string; provider: 'tcgplayer' | 'cardmarket' | 'cardtrader'; value: number | null; why?: string }
 
 export async function loadFixes(): Promise<ProductFix[]> {
@@ -42,7 +42,7 @@ export async function saveFixes(fixes: ProductFix[]): Promise<void> {
 export const sameFix = (a: ProductFix, b: ProductFix): boolean =>
 	a.set === b.set && a.product === b.product && a.op === b.op && (a.op !== 'price' || (b.op === 'price' && a.variant === b.variant && a.provider === b.provider))
 
-export const variantKey = (v: Record<string, unknown>): string => [v.exclusive, v.artwork].filter(Boolean).join('-') || 'standard'
+export const variantKey = variantKeyOf
 
 export function applyFixes(files: ProductFile[], fixes: ProductFix[]): { files: ProductFile[]; applied: Record<string, string[]> } {
 	const applied: Record<string, string[]> = {}
@@ -55,7 +55,7 @@ export function applyFixes(files: ProductFile[], fixes: ProductFix[]): { files: 
 		if (fix.op === 'exclude') { gone.add(p.id); note(p.id, 'left out') }
 		else if (fix.op === 'type') { p.type = fix.value; note(p.id, `type ${fix.value}`) }
 		else if (fix.op === 'name') { p.name = { en: fix.value }; note(p.id, 'name') }
-		else if (fix.op === 'contents') { p.contents = fix.value as ProductFile['contents']; note(p.id, 'contents') }
+		else if (fix.op === 'contents') { p.contents = fix.value as ProductFile['contents']; if (!p.contents || !Object.keys(p.contents).length) delete p.contents; note(p.id, 'contents') }
 		else if (fix.op === 'price') {
 			const v = p.variants.find((x) => variantKey(x) === fix.variant) as { prices?: Record<string, number> } | undefined
 			if (!v) continue
@@ -66,11 +66,15 @@ export function applyFixes(files: ProductFile[], fixes: ProductFix[]): { files: 
 	}
 	// a product that is left out can't be listed in another's contents
 	for (const p of out) {
-		if (!p.contents) continue
-		const before = p.contents.length
-		p.contents = p.contents.filter((c) => !('product' in c && gone.has(c.product)))
-		if (p.contents.length !== before) note(p.id, 'a line for a product that was left out is dropped')
-		if (!p.contents.length) delete p.contents
+		let dropped = false
+		for (const c of [p.contents, ...p.variants.map((v) => (v as { contents?: ProductFile['contents'] }).contents)]) {
+			for (const kind of ['boosterPacks', 'products'] as const) {
+				for (const id of Object.keys(c?.[kind] ?? {})) if (gone.has(id)) { delete c![kind]![id]; dropped = true }
+				if (c?.[kind] && !Object.keys(c[kind]!).length) delete c[kind]
+			}
+		}
+		if (dropped) note(p.id, 'a line for a product that was left out is dropped')
+		if (p.contents && !Object.keys(p.contents).length) delete p.contents
 	}
 	return { files: out.filter((p) => !gone.has(p.id)), applied }
 }
@@ -125,7 +129,7 @@ export async function buildSet(setId: string, opts: { refresh?: boolean; repo?: 
 		} catch { /* the page then shows products without a description */ }
 	}
 	const tracked = sealed.products.filter((p) => !p.number && !/^code card/i.test(p.name))
-	const built = buildProducts(setId, set.name, sealed.set_released ?? undefined, tracked, cm, promoSet ? await loadPromoCards([promoSet], setId) : [])
+	const built = buildProducts(setId, set.name, sealed.set_released ?? undefined, tracked, cm, promoSet ? await loadPromoCards([promoSet]) : [])
 	const fixes = (await loadFixes()).filter((f) => f.set === setId)
 	const { files, applied } = applyFixes(built.files, fixes)
 	const folder = join(intlDir(repo), 'products', fileSafe(set.name))
