@@ -235,11 +235,12 @@ program
 	.option('--overwrite', 'replace files that already exist (a rebuild)', false)
 	.option('--refresh', 'scrape again even when the cache already has the set', false)
 	.option('--plan', 'list what would run and exit (no network, no files)', false)
+	.option('--allow-incomplete', 'write a set even when a source failed (it may lack variants, ids or text)', false)
 	.action(async (series: string[], opts) => {
 		const { buildEras } = await import('./batch.ts')
 		await buildEras({
 			series, repo: opts.repo, sets: opts.sets ? String(opts.sets).split(',').map((x: string) => x.trim()) : undefined,
-			from: opts.from, apply: Boolean(opts.apply), overwrite: Boolean(opts.overwrite), refresh: Boolean(opts.refresh), plan: Boolean(opts.plan)
+			from: opts.from, apply: Boolean(opts.apply), overwrite: Boolean(opts.overwrite), refresh: Boolean(opts.refresh), plan: Boolean(opts.plan), allowIncomplete: Boolean(opts.allowIncomplete)
 		})
 		process.exit(0)
 	})

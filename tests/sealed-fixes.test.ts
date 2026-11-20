@@ -1,0 +1,55 @@
+import { describe, expect, test } from 'bun:test'
+import { applyFixes, sameFix, type ProductFix } from '../src/sources/sealed-set.ts'
+import type { ProductFile } from '../src/sources/sealed.ts'
+
+const product = (over: Partial<ProductFile> = {}): ProductFile => ({
+	id: 'x-box', type: 'booster-box', name: { en: 'X Box' }, set: 'x',
+	contents: [{ product: 'x-pack', quantity: 36 }],
+	variants: [{ prices: { tcgplayer: 1, cardmarket: 2 } }, { exclusive: 'pokemon-center', prices: { tcgplayer: 3 } }],
+	provenance: { source: 'tcgtracking', validation: 'unverified' },
+	...over
+})
+const pack = product({ id: 'x-pack', type: 'booster-pack', contents: undefined })
+const base = { set: 'x', product: 'x-box' }
+
+describe('product fixes', () => {
+	test('type, name and contents replace what was built; the input is not changed', () => {
+		const built = [product()]
+		const { files, applied } = applyFixes(built, [
+			{ ...base, op: 'type', value: 'case' }, { ...base, op: 'name', value: 'Corrected' }, { ...base, op: 'contents', value: [{ item: { en: 'Dice' }, quantity: 6 }] }
+		])
+		expect(files[0]).toMatchObject({ type: 'case', name: { en: 'Corrected' }, contents: [{ item: { en: 'Dice' }, quantity: 6 }] })
+		expect(built[0]!.type).toBe('booster-box')
+		expect(applied['x-box']).toHaveLength(3)
+	})
+
+	test('a price fix sets or removes the id of one variant', () => {
+		const { files } = applyFixes([product()], [
+			{ ...base, op: 'price', variant: 'standard', provider: 'cardmarket', value: null },
+			{ ...base, op: 'price', variant: 'pokemon-center', provider: 'cardmarket', value: 9 }
+		])
+		expect((files[0]!.variants[0] as any).prices).toEqual({ tcgplayer: 1 })
+		expect((files[0]!.variants[1] as any).prices).toEqual({ tcgplayer: 3, cardmarket: 9 })
+	})
+
+	test('a product that is left out is dropped, and so are the contents lines that name it', () => {
+		const { files, applied } = applyFixes([product(), pack], [{ set: 'x', product: 'x-pack', op: 'exclude' }])
+		expect(files.map((f) => f.id)).toEqual(['x-box'])
+		expect(files[0]!.contents).toBeUndefined()
+		expect(applied['x-box']![0]).toContain('left out')
+	})
+
+	test('a fix for a product that is not there is ignored', () => {
+		expect(applyFixes([product()], [{ set: 'x', product: 'ghost', op: 'type', value: 'tin' }]).files[0]!.type).toBe('booster-box')
+	})
+
+	test('the same correction replaces the earlier one; price fixes are told apart by variant and provider', () => {
+		const a: ProductFix = { ...base, op: 'type', value: 'tin' }
+		expect(sameFix(a, { ...base, op: 'type', value: 'case' })).toBe(true)
+		expect(sameFix(a, { ...base, op: 'name', value: 'n' })).toBe(false)
+		const p: ProductFix = { ...base, op: 'price', variant: 'standard', provider: 'cardmarket', value: 1 }
+		expect(sameFix(p, { ...p, value: 2 })).toBe(true)
+		expect(sameFix(p, { ...p, provider: 'tcgplayer' })).toBe(false)
+		expect(sameFix(p, { ...p, variant: 'pokemon-center' })).toBe(false)
+	})
+})

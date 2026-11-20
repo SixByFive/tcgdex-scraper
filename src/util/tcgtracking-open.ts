@@ -32,6 +32,13 @@ export async function fetchCards(groupId: number): Promise<TrackedSet> {
 	return data
 }
 
+/** Sealed products of a set (boxes, packs, blisters...), with the ids TCGTracking has matched. */
+export async function fetchSealed(groupId: number): Promise<TrackedSet> {
+	const data = await getJson<TrackedSet>(`${BASE}/${POKEMON_CATEGORY}/sets/${groupId}/sealed`)
+	if (!data) throw new Error(`TCGTracking has no set ${groupId}`)
+	return data
+}
+
 export async function fetchSetInfo(groupId: number): Promise<Omit<TrackedSet, 'products'> & { product_count: number }> {
 	const data = await getJson<any>(`${BASE}/${POKEMON_CATEGORY}/sets/${groupId}`)
 	if (!data) throw new Error(`TCGTracking has no set ${groupId}`)

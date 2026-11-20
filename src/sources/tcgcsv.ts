@@ -89,8 +89,19 @@ export interface PrizePackProduct {
 	variant: Omit<VariantOut, 'prices'>
 }
 
+/** The card a Prize Pack product is: its number and name, from the key it is indexed under (`total|number|name`). */
+export function prizeProductOwner(index: PrizePackIndex, productId: number): { number: number; name: string } | undefined {
+	const find = (key: string) => { const [, number, ...name] = key.split('|'); return { number: Number(number), name: name.join('|') } }
+	for (const [key, list] of index) if (list.some((p) => p.productId === productId)) return find(key)
+	for (const [key, list] of index.ambiguous ?? []) if (list.some((p) => p.productId === productId)) return find(key)
+	return undefined
+}
+
 /** Prize Pack products by `total|number|name`. */
-export type PrizePackIndex = Map<string, PrizePackProduct[]>
+export type PrizePackIndex = Map<string, PrizePackProduct[]> & { ambiguous?: Map<string, AmbiguousProduct[]> }
+
+/** A Prize Pack product TCGplayer lists under several finishes (or none): which one the card has is for the card's own variants to say. */
+export interface AmbiguousProduct { productId: number; name: string; types: string[]; foil?: string; stamps: string[] }
 
 export async function loadPrizePackIndex(warn: (m: string) => void): Promise<PrizePackIndex> {
 	const group = await fetchGroup(PRIZE_PACK_GROUP)
@@ -98,6 +109,8 @@ export async function loadPrizePackIndex(warn: (m: string) => void): Promise<Pri
 	for (const p of group.prices) if (p.subTypeName) subtypes.set(p.productId, [...(subtypes.get(p.productId) ?? []), p.subTypeName])
 
 	const index: PrizePackIndex = new Map()
+	const ambiguous = new Map<string, AmbiguousProduct[]>()
+	index.ambiguous = ambiguous
 	let unclear = 0
 	for (const p of group.products) {
 		const parsed = parseProductName(p.name, p.extendedData?.find((e) => e.name === 'Number')?.value)
@@ -105,15 +118,20 @@ export async function loadPrizePackIndex(warn: (m: string) => void): Promise<Pri
 		if (parsed.number == null || parsed.total == null) continue
 		const kinds = subtypes.get(p.productId) ?? []
 		const type = kinds.length === 1 ? TYPE_OF[kinds[0]!] : undefined
-		if (!type) { unclear++; continue }
 		// finish and stamps come from the tags with the same reading the TCGTracking path uses (Cosmos Holo -> cosmos foil)
 		const read = resolveFromText(parsed.tags)
 		const key = `${parsed.total}|${parsed.number}|${plain(parsed.base)}`
+		if (!type) {
+			unclear++
+			const types = [...new Set(kinds.map((k) => TYPE_OF[k]).filter((x): x is string => Boolean(x)))]
+			ambiguous.set(key, [...(ambiguous.get(key) ?? []), { productId: p.productId, name: p.name, types, foil: read?.foil || undefined, stamps: [PRIZE_PACK_STAMP, ...(read?.stamp ?? []).filter((s) => s !== PRIZE_PACK_STAMP)].sort() }])
+			continue
+		}
 		const list = index.get(key) ?? []
 		list.push({ productId: p.productId, name: p.name, variant: { type, foil: read?.foil || undefined, size: undefined, stamps: [PRIZE_PACK_STAMP, ...(read?.stamp ?? []).filter((s) => s !== PRIZE_PACK_STAMP)].sort() } })
 		index.set(key, list)
 	}
-	if (unclear) warn(`TCGCSV: ${unclear} Prize Pack products list more than one printing (or none), so which one they are is unclear: skipped`)
+	if (unclear) warn(`TCGCSV: ${unclear} Prize Pack products list more than one printing (or none): used only where a card's own Prize Pack variant says which`)
 	return index
 }
 
@@ -123,12 +141,16 @@ export async function loadPrizePackIndex(warn: (m: string) => void): Promise<Pri
  * Prize Pack Series 6 and 7) nothing is guessed: the variant is left as it is and reported.
  * Returns the merged list and how many variants were filled or added.
  */
-export function applyPrizePack(list: VariantOut[], card: ScrapedCard, index: PrizePackIndex, schema: SchemaModule, warn: (m: string) => void, label: string): { list: VariantOut[]; changed: number } {
+export function applyPrizePack(list: VariantOut[], card: ScrapedCard, index: PrizePackIndex, schema: SchemaModule, warn: (m: string) => void, label: string, officialTotal?: number): { list: VariantOut[]; changed: number } {
 	const s = card.structural
 	const name = card.locales.en?.name
 	if (!name || s.total == null || s.number == null) return { list, changed: 0 }
-	const found = index.get(`${s.total}|${s.number}|${plain(name)}`)
-	if (!found?.length) return { list, changed: 0 }
+	// the total on the card is the set's official count ("095/197"); the scrape may hold the count with secret rares (227) instead
+	const keys = [...new Set([s.total, officialTotal].filter((x): x is number => x != null))].map((t) => `${t}|${s.number}|${plain(name)}`)
+	const key = keys.find((k) => index.has(k) || index.ambiguous?.has(k)) ?? keys[0]!
+	const found = index.get(key) ?? []
+	const maybe = index.ambiguous?.get(key) ?? []
+	if (!found.length && !maybe.length) return { list, changed: 0 }
 
 	const stamps = new Set<string>(schema.stamps)
 	const foils = new Set<string>(schema.foils)
@@ -145,9 +167,34 @@ export function applyPrizePack(list: VariantOut[], card: ScrapedCard, index: Pri
 		if (have) {
 			if (have.prices.tcgplayer == null) { have.prices.tcgplayer = products[0]!.productId; changed++ }
 		} else {
-			out.push({ ...v, prices: { tcgplayer: products[0]!.productId } })
+			// the product is already on another variant of this card (TCGdex's, under another finish): TCGplayer knows the product's finish
+			// (Toedscruel ex's Prize Pack card is a Holofoil one, TCGdex lists it as normal), so that variant is the same one, relabelled
+			const held = out.find((x) => x.prices.tcgplayer === products[0]!.productId)
+			if (held) {
+				warn(`${label}: Prize Pack product ${products[0]!.productId} is a ${v.type}${v.foil ? ':' + v.foil : ''} product at TCGplayer; the ${idOf(held)} variant that has it is relabelled`)
+				held.type = v.type; held.foil = v.foil; held.size = v.size; held.stamps = v.stamps
+			} else {
+				// the card's only Prize Pack variant has no TCGplayer id yet and TCGplayer has only this one Prize Pack product for the card: they
+				// are one printing, with the finish TCGplayer gives (TCGdex lists Tyranitar ex's as normal, TCGplayer sells it as Holofoil)
+				const lone = out.filter((x) => x.stamps?.includes(PRIZE_PACK_STAMP) && x.prices.tcgplayer == null && (x.foil ?? undefined) === (v.foil ?? undefined) && [...(x.stamps ?? [])].sort().join() === [...(v.stamps ?? [])].sort().join())
+				if (lone.length === 1 && byId.size === 1) {
+					warn(`${label}: the ${idOf(lone[0]!)} Prize Pack variant has no TCGplayer id and TCGplayer's only Prize Pack product for the card (${products[0]!.productId}) is a ${v.type} one: one variant, relabelled ${v.type}`)
+					lone[0]!.type = v.type; lone[0]!.size = v.size; lone[0]!.prices.tcgplayer = products[0]!.productId
+				} else out.push({ ...v, prices: { tcgplayer: products[0]!.productId } })
+			}
 			changed++
 		}
+	}
+	// A product listed under several finishes ("Normal + Holofoil") can't say which variant it is, but a Prize Pack variant the card
+	// already has (from TCGdex) can: it takes the one product that could be it, when there is exactly one.
+	const taken = new Set(out.flatMap((v) => (v.prices.tcgplayer ? [v.prices.tcgplayer] : [])))
+	for (const v of out) {
+		if (v.prices.tcgplayer != null || !v.stamps?.includes(PRIZE_PACK_STAMP)) continue
+		const fits = maybe.filter((m) => !taken.has(m.productId) && (m.types.length === 0 || m.types.includes(v.type)) && (m.foil ?? undefined) === (v.foil ?? undefined) && m.stamps.join() === [...(v.stamps ?? [])].sort().join())
+		if (fits.length !== 1) { if (fits.length > 1) warn(`${label}: ${fits.length} Prize Pack products could be the ${idOf(v)} variant (${fits.map((m) => m.productId).join(', ')}), none used`); continue }
+		v.prices.tcgplayer = fits[0]!.productId
+		taken.add(fits[0]!.productId)
+		changed++
 	}
 	return { list: changed ? sortVariants(out) : list, changed }
 }

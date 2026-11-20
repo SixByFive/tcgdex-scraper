@@ -272,3 +272,27 @@ button { font-family: inherit; }
 .cat-actions { white-space: nowrap; }
 .cat-actions .btn { padding: 3px 8px; font-size: 12px; margin-right: 4px; }
 .cat-run { display: block; margin-top: 3px; white-space: normal; }
+
+/* Products page */
+.pr-layout { display: grid; grid-template-columns: 260px 1fr; gap: 20px; align-items: start; }
+.pr-sets { display: flex; flex-direction: column; gap: 2px; max-height: calc(100vh - 160px); overflow: auto; position: sticky; top: 12px; }
+.pr-set { display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: baseline; padding: 7px 10px; border-radius: 6px; text-decoration: none; color: inherit; }
+.pr-set:hover { background: rgba(127, 127, 127, 0.1); }
+.pr-set[aria-current="true"] { background: rgba(127, 127, 127, 0.18); }
+.pr-set-name { font-weight: 600; }
+.pr-set-chips { width: 100%; display: flex; gap: 4px; }
+.pr-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 10px; }
+.pr-title { margin: 0; font-size: 20px; }
+.pr-notes details { margin: 6px 0; }
+.pr-notes summary { cursor: pointer; }
+.pr-row { cursor: pointer; }
+.pr-row:hover { background: rgba(127, 127, 127, 0.08); }
+.pr-detail-body { padding: 12px 4px 18px; }
+.pr-cols { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 24px; }
+.pr-contents, .pr-fixes { margin: 4px 0; padding-left: 18px; }
+.pr-desc { font-size: 13px; line-height: 1.5; max-height: 260px; overflow: auto; padding: 8px 10px; border: 1px solid rgba(127, 127, 127, 0.3); border-radius: 6px; }
+.pr-json { width: 100%; font-family: ui-monospace, monospace; font-size: 12px; margin: 6px 0; }
+.pr-form { display: flex; flex-direction: column; gap: 8px; }
+.pr-form label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; }
+.pr-id { padding: 0 6px; font-size: 11px; }
+@media (max-width: 900px) { .pr-layout, .pr-cols { grid-template-columns: 1fr; } }

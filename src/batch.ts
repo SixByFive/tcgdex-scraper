@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 import config from '../config.json' with { type: 'json' }
 import { loadRegistry, type RegistrySet } from './registry/build.ts'
 import { scrapeSet } from './sources/pokemon-com.ts'
-import { enrichScrapedSet } from './sources/enrich-scraped.ts'
+import { blockingProblems, enrichScrapedSet } from './sources/enrich-scraped.ts'
 import { spawn } from 'node:child_process'
 import { defaultRepo } from './util/experimental.ts'
 
@@ -26,6 +26,8 @@ export interface BatchOptions {
 	refresh?: boolean
 	/** list what would run and exit: no network, no files */
 	plan?: boolean
+	/** write a set even when a source failed (TCGTracking, TCGdex, TCGCSV): it may lack variants, ids or text */
+	allowIncomplete?: boolean
 	log?: (line: string) => void
 }
 
@@ -116,7 +118,7 @@ export async function buildEras(opts: BatchOptions): Promise<void> {
 		state[set.id] = entry
 		log(`\n[batch] (${n}/${todo.length}) ${set.id} ${set.name} [${set.slug}]`)
 		try {
-			await buildOne(set, entry, { repo, apply: Boolean(opts.apply), overwrite: Boolean(opts.overwrite), refresh: Boolean(opts.refresh), log })
+			await buildOne(set, entry, { repo, apply: Boolean(opts.apply), overwrite: Boolean(opts.overwrite), refresh: Boolean(opts.refresh), allowIncomplete: Boolean(opts.allowIncomplete), log })
 			consecutiveScrapeFailures = 0
 		} catch (err) {
 			entry.error = (err as Error).message
@@ -141,7 +143,7 @@ export async function buildEras(opts: BatchOptions): Promise<void> {
 	if (failed.length) log(`\n[batch] ${failed.length} failed: ${failed.map((s) => s.id).join(', ')}. Fix and re-run with --sets ${failed.map((s) => s.id).join(',')}`)
 }
 
-async function buildOne(set: RegistrySet, entry: SetState, o: { repo: string; apply: boolean; overwrite: boolean; refresh: boolean; log: (l: string) => void }) {
+async function buildOne(set: RegistrySet, entry: SetState, o: { repo: string; apply: boolean; overwrite: boolean; refresh: boolean; allowIncomplete?: boolean; log: (l: string) => void }) {
 	const expected = set.total ?? set.official
 	entry.expected = expected
 
@@ -166,8 +168,17 @@ async function buildOne(set: RegistrySet, entry: SetState, o: { repo: string; ap
 	if (expected != null && have < expected) entry.notes.push(`${set.source === 'tcgdex' ? 'TCGdex' : 'pokemon.com and TCGdex have'} ${have} of ${expected} cards`)
 
 	// 2. enrich: variants and provider ids, flavor text, regulation marks, stages
-	await enrichScrapedSet({ setId: set.id, repo: o.repo, tcgplayerSet: set.tcgplayerGroup ?? undefined })
+	const enrich = await enrichScrapedSet({ setId: set.id, repo: o.repo, tcgplayerSet: set.tcgplayerGroup ?? undefined })
 	entry.enriched = true
+	// A source that failed or gave nothing leaves cards without variants, ids or text that the files being replaced may have. Writing
+	// them would lose data; the enrich result is kept in the cache, so re-running the set only repeats what failed.
+	// (A set the registry has no TCGplayer group for is written without variants on purpose: that is a note, not a stop.)
+	const blocking = blockingProblems(enrich.problems, set.tcgplayerGroup != null)
+	if (blocking.length && !o.allowIncomplete) {
+		if (set.tcgplayerGroup == null) entry.notes.push('no TCGplayer group in the registry: written without variants')
+		throw new Error(`enrich incomplete, nothing written: ${blocking.join('; ')}. Run the set again, or pass --allow-incomplete to write it anyway`)
+	}
+	if (enrich.problems.length) entry.notes.push(...enrich.problems.map((p) => `incomplete: ${p}`))
 
 	// cross-check against the repo's current card, TCGTracking and PokeData: reported, never changed, never stops the build
 	try {

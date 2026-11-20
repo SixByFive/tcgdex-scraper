@@ -2,6 +2,7 @@ const app = document.getElementById('app')
 const modalRoot = document.getElementById('modal-root')
 const topbarStatus = document.getElementById('topbar-status')
 import { renderCatalog as drawCatalog } from './catalog.js'
+import { renderProducts as drawProducts } from './products.js'
 
 let currentEs = null
 let currentCards = []  // cache for modal lookup
@@ -28,6 +29,7 @@ function route() {
 	const parts = hash.split('/').filter(Boolean).map(decodeURIComponent)
 	if (parts.length === 0) return renderSetsIndex()
 	if (parts[0] === 'catalog') return drawCatalog(app, { closeStream, setTopbarStatus })
+	if (parts[0] === 'products') return drawProducts(app, parts[1] ?? '', { closeStream, setTopbarStatus })
 	if (parts[0] === 'experimental') return renderExperimental(parts[1] ?? '')
 	// pricing is off for now: the enrich page is not reachable (re-enable with the buttons and /api/enrich/* routes)
 	// if (parts[0] === 'enrich' && parts.length >= 3) {
@@ -255,6 +257,27 @@ async function renderSetGrid(setId) {
 		const { kind } = JSON.parse(e.data)
 		const btn = document.querySelector(`[data-action="${kind}"]`)
 		if (btn) markRunning(btn)
+	})
+	// a cross-check reports in a panel over the page: every disagreement, or that there are none
+	currentEs.addEventListener('job-output', e => {
+		const { text, code } = JSON.parse(e.data)
+		document.getElementById('crosscheck-panel')?.remove()
+		const panel = document.createElement('div')
+		panel.id = 'crosscheck-panel'
+		panel.style.cssText = 'position:fixed;right:16px;bottom:16px;width:min(720px,calc(100vw - 32px));max-height:50vh;display:flex;flex-direction:column;background:var(--panel,#1c1c22);color:var(--text,#e6e6ea);border:1px solid var(--border,#3a3a44);border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.4);z-index:50'
+		const bar = document.createElement('div')
+		bar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border,#3a3a44);font-weight:600'
+		bar.textContent = code === 0 ? 'Cross-check' : 'Cross-check failed'
+		const close = document.createElement('button')
+		close.className = 'btn btn-ghost'
+		close.textContent = 'Close'
+		close.addEventListener('click', () => panel.remove())
+		bar.appendChild(close)
+		const pre = document.createElement('pre')
+		pre.style.cssText = 'margin:0;padding:12px;overflow:auto;white-space:pre-wrap;font-size:12px'
+		pre.textContent = (text || '').trim() || '(no output)'
+		panel.append(bar, pre)
+		document.body.appendChild(panel)
 	})
 	currentEs.addEventListener('job-done', e => {
 		const { kind, code } = JSON.parse(e.data)

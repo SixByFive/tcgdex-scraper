@@ -5,6 +5,10 @@ import config from '../../config.json' with { type: 'json' }
 import type { ScrapedCard } from '../types/scraped.ts'
 import { fetchCards } from '../util/tcgtracking-open.ts'
 import { nameKey } from '../emit/variants.ts'
+import { looseName } from '../emit/names.ts'
+
+/** PokeData's names carry the rarity ("Full Art Dhelmise V") and drop apostrophes ("Ns Zekrom"): neither is a different card. */
+const pdKey = (s: string): string => nameKey(looseName(s).replace(/['’]/g, '').replace(/^(full art|secret|alternate art|alt art|rainbow|gold|special illustration|illustration) /, ''))
 import { listSets as listExperimentalSets } from '../util/experimental.ts'
 
 /**
@@ -80,18 +84,25 @@ export async function crossCheckSet(setId: string, repo: string, tcgplayerGroup?
 				const k = String(card.structural.number)
 				const theirs = byNum.get(k)
 				const en = card.locales.en?.name ?? ''
-				if (!theirs) { out.push({ card: f.replace('.json', ''), field: 'number', scraped: k, other: 'none', against: 'PokeData has no entry with this number' }); continue }
-				if (!theirs.some((e) => nameKey(e.name).startsWith(nameKey(en)) || nameKey(en).startsWith(nameKey(e.name)))) {
+				if (!theirs) { if (k === '0') continue; out.push({ card: f.replace('.json', ''), field: 'number', scraped: k, other: 'none', against: 'PokeData has no entry with this number' }); continue }
+				if (!theirs.some((e) => pdKey(e.name).startsWith(pdKey(en)) || pdKey(en).startsWith(pdKey(e.name)))) {
 					out.push({ card: f.replace('.json', ''), field: 'name', scraped: en, other: theirs.map((e) => e.name).join(' / '), against: 'PokeData' })
 				}
 				const ours = new Set((card.variants ?? []).map((v) => String(v.prices.tcgplayer)))
 				// only entries named like this card count: PokeData's number is the printed one, so an entry can be another set's card ("Charmander 4/165")
-				for (const e of theirs.filter((x) => nameKey(x.name).startsWith(nameKey(en)))) if (e.tcgplayer_id && !ours.has(String(e.tcgplayer_id))) missingIds.push({ card: f.replace('.json', ''), field: 'tcgplayer id', scraped: 'none', other: `${e.name} ${e.tcgplayer_id}`, against: 'PokeData (candidate variant)' })
+				for (const e of theirs.filter((x) => pdKey(x.name).startsWith(pdKey(en)))) if (e.tcgplayer_id && !ours.has(String(e.tcgplayer_id))) missingIds.push({ card: f.replace('.json', ''), field: 'tcgplayer id', scraped: 'none', other: `${e.name} ${e.tcgplayer_id}`, against: 'PokeData (candidate variant)' })
 			}
 			pokedata = { entries: entries.length, missingIds }
 		}
 	} catch (err) {
 		out.push({ card: '-', field: 'pokedata', scraped: '-', other: (err as Error).message, against: 'PokeData unreachable: not compared' })
+	}
+	// 4. Cardmarket's own catalogue: every Cardmarket id must be a product of this card
+	try {
+		const { verifyCardmarketIds } = await import('./cardmarket-catalogue.ts')
+		for (const p of (await verifyCardmarketIds(setId)).problems) out.push({ card: p.card, field: `cardmarket ${p.id} (${p.variant})`, scraped: p.card, other: p.problem, against: 'Cardmarket catalogue' })
+	} catch (err) {
+		out.push({ card: '-', field: 'cardmarket catalogue', scraped: '-', other: (err as Error).message, against: 'Cardmarket catalogue unreachable: ids not verified' })
 	}
 	return { checked: files.length, disagreements: out, tcgdexOnly, pokedata }
 }

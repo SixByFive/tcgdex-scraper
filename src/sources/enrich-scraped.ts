@@ -10,7 +10,7 @@ import { defaultRepo, listSets, loadSchema } from '../util/experimental.ts'
 import { fetchCards } from '../util/tcgtracking-open.ts'
 import { cardKey, collectorKey, tcgdexLocalId } from '../emit/normalise.ts'
 import { mergeTcgdexVariants, type ProductIds } from '../emit/tcgdex-variants.ts'
-import { applyPrizePack, loadPrizePackIndex } from './tcgcsv.ts'
+import { applyPrizePack, loadPrizePackIndex, prizeProductOwner } from './tcgcsv.ts'
 
 // curly and straight apostrophes/quotes and case differ between sources for the same card
 import { sameCardName } from '../emit/names.ts'
@@ -37,7 +37,18 @@ export interface EnrichScrapedOptions {
  *   - `tcgdex`: flavor text per language and the regulation mark, from the TCGdex API (always fetched fresh)
  * Safe to run again later: TCGTracking and TCGdex fill in new sets over the first weeks.
  */
-export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void> {
+/** What a source failed to give: a set written while this is not empty may lack variants, ids or text it should have. */
+export interface EnrichResult { problems: string[] }
+
+/**
+ * The problems that must stop a set being written. A set the registry has no TCGplayer group for is written without variants on
+ * purpose, so "no group" is not one of them then.
+ */
+export const blockingProblems = (problems: string[], registryHasGroup: boolean): string[] =>
+	problems.filter((p) => registryHasGroup || !p.startsWith('no TCGplayer group'))
+
+export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<EnrichResult> {
+	const problems: string[] = []
 	const log = opts.log ?? console.log
 	const warn = (m: string) => log(`[enrich] warning: ${m}`)
 	const repo = opts.repo ?? defaultRepo
@@ -71,7 +82,7 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 				warn(`could not look up the TCGplayer group: ${(err as Error).message}`)
 			}
 		}
-		if (!groupId) warn('no TCGplayer group found: variants and provider ids skipped (pass --tcgplayer-set <id>)')
+		if (!groupId) { warn('no TCGplayer group found: variants and provider ids skipped (pass --tcgplayer-set <id>)'); problems.push('no TCGplayer group found: no variants or provider ids') }
 		else {
 			log(`[enrich] TCGTracking group ${groupId}`)
 			const schema = await loadSchema(repo)
@@ -127,13 +138,17 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 	}
 
 	// ---- TCGdex: flavor text and regulation marks -----------------------------------------------------------------
-	const extras = opts.noTcgdex ? undefined : await fetchCardExtras(opts.setId, cards.map(({ card }) => tcgdexLocalId(card)), warn, true)
+	const tcgdexStats = { failures: 0 }
+	const extras = opts.noTcgdex ? undefined : await fetchCardExtras(opts.setId, cards.map(({ card }) => tcgdexLocalId(card)), warn, true, tcgdexStats)
+	if (tcgdexStats.failures) problems.push(`${tcgdexStats.failures} TCGdex requests failed: descriptions, regulation marks or variants may be missing`)
 
 	// ---- store ----------------------------------------------------------------------------------------------------
 	// TCGCSV: TCGplayer ids of the Play! Pokémon Prize Pack reprints of this set's cards (TCGdex has none for them)
 	let prize: Awaited<ReturnType<typeof loadPrizePackIndex>> | undefined
+	let officialTotal: number | undefined
 	if (!opts.noTcgcsv) {
-		try { prize = await loadPrizePackIndex(warn) } catch (err) { warn(`TCGCSV: ${(err as Error).message}; Prize Pack ids skipped`) }
+		try { officialTotal = (await (await import('../registry/build.ts')).loadRegistry()).sets.find((x) => x.id === opts.setId)?.official ?? undefined } catch {}
+		try { prize = await loadPrizePackIndex(warn) } catch (err) { warn(`TCGCSV: ${(err as Error).message}; Prize Pack ids skipped`); problems.push(`TCGCSV failed (${(err as Error).message}): no Prize Pack ids`) }
 	}
 
 	let withVariants = 0, withText = 0, withMark = 0, fromTcgdex = 0, fromTcgcsv = 0, keptEarlier = 0
@@ -179,6 +194,13 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 					warn(`${opts.setId}-${tcgdexLocalId(card)}: TCGdex gives ${enName} TCGplayer product ${tv.tcgplayer}, which ${foreign} holds: ids dropped`)
 					return { ...tv, tcgplayer: undefined, cardmarket: undefined, cardtrader: undefined }
 				}
+				// a Prize Pack product is one card's: TCGdex gave Tyranitar ex Toedscruel ex's (538743, "022/197")
+				const prizeOwner = tv.tcgplayer && prize ? prizeProductOwner(prize, tv.tcgplayer) : undefined
+				if (prizeOwner && card.structural.number != null && prizeOwner.number !== card.structural.number) {
+					warn(`${opts.setId}-${tcgdexLocalId(card)}: TCGdex gives ${enName} TCGplayer product ${tv.tcgplayer}, which TCGCSV's Prize Pack group numbers ${prizeOwner.number} (${prizeOwner.name}): its TCGplayer id dropped`)
+					// only the TCGplayer id: TCGdex's Cardmarket id for the variant is checked against Cardmarket's catalogue separately
+					return { ...tv, tcgplayer: undefined }
+				}
 				const owner = tv.tcgplayer ? productNames.get(tv.tcgplayer) : undefined
 				if (owner && owner !== mine && !sameCardName(owner, enName ?? '') && setNames.has(owner)) {
 					warn(`${opts.setId}-${tcgdexLocalId(card)}: TCGdex gives ${enName} TCGplayer product ${tv.tcgplayer}, which TCGTracking names "${owner}" (another card of the set): ids dropped`)
@@ -193,7 +215,7 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 		}
 		let csvChanged = 0
 		if (prize) {
-			const r = applyPrizePack(list ?? [], card, prize, schema, warn, `${opts.setId}-${tcgdexLocalId(card)}`)
+			const r = applyPrizePack(list ?? [], card, prize, schema, warn, `${opts.setId}-${tcgdexLocalId(card)}`, officialTotal)
 			if (r.changed) { list = r.list; csvChanged = r.changed; fromTcgcsv += r.changed }
 		}
 		// hand-checked corrections (registry/id-fixes.json) for ids a source gives the wrong card; they win over every source and
@@ -263,6 +285,8 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 		card.enrichedAt = now
 		await writeFile(file, JSON.stringify(card, null, 2))
 	}
-	if (keptEarlier) warn(`TCGdex gave nothing for ${keptEarlier} cards it had data for before (failed requests?): their earlier data was kept`)
+	if (keptEarlier) { warn(`TCGdex gave nothing for ${keptEarlier} cards it had data for before (failed requests?): their earlier data was kept`); problems.push(`TCGdex gave nothing for ${keptEarlier} cards it had answered for before`) }
 	log(`[enrich] stored: ${variants ? `${withVariants}/${cards.length} cards with variants` : 'variants skipped'}; ${extras ? `${withText} with flavor text, ${withMark} with a regulation mark${fromTcgdex ? `; ${fromTcgdex} variants added from TCGdex (stamps, patterns, sizes)` : ''}${fromTcgcsv ? `; ${fromTcgcsv} Prize Pack ids from TCGCSV` : ''}` : 'TCGdex skipped'}`)
+	if (problems.length) log(`[enrich] INCOMPLETE: ${problems.join('; ')}`)
+	return { problems }
 }

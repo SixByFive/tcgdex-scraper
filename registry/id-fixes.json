@@ -1,26 +1,181 @@
 [
 	{
-		"set": "sv03", "card": "062", "variant": { "type": "holo", "foil": "cosmos" }, "provider": "cardmarket", "id": null,
-		"why": "TCGdex gives Palafin's cosmos holo Frogadier's Cardmarket id (781858: Froakie 781857, Frogadier 781858, Pawniard 781859 run in card order); Palafin's own is not known"
+		"set": "sv03",
+		"card": "062",
+		"variant": {
+			"type": "holo",
+			"foil": "cosmos"
+		},
+		"provider": "cardmarket",
+		"id": 785704,
+		"why": "TCGdex gives Palafin's cosmos holo Frogadier's Cardmarket id (781858). Cardmarket's catalogue: 785704 is the only Palafin in Obsidian Flames (exp 5385) besides the regular, full-art and pre-release ones, and sits next to Togekiss's cosmos id 785705"
 	},
 	{
-		"set": "sv03", "card": "066", "variant": { "type": "normal", "stamps": ["player-rewards-program"] }, "provider": "tcgplayer", "id": 538744,
-		"why": "TCGdex gives Tyranitar ex Toedscruel ex's Prize Pack product (538743); TCGCSV names 538744 \"Tyranitar ex - 066/197\""
+		"set": "sv03",
+		"card": "164",
+		"variant": {
+			"type": "holo",
+			"stamps": [
+				"player-rewards-program"
+			]
+		},
+		"provider": "cardmarket",
+		"id": 811161,
+		"why": "Cardmarket's catalogue: 811161 is \"Pidgeot ex [Quick Search | Blustery Wind]\" in the Prize Pack expansion (6041). An earlier guess that it was Town Store's was wrong"
 	},
 	{
-		"set": "sv03", "card": "164", "variant": { "type": "holo", "stamps": ["player-rewards-program"] }, "provider": "cardmarket", "id": null,
-		"why": "811161 looks like Town Store's (same 811xxx era as its TCGplayer 811245); Pidgeot ex's TCGplayer 538737 is an older Prize Pack product whose Cardmarket ids are 756xxx. Pidgeot ex's own is not known. Not confirmed (Cardmarket blocks lookups)"
+		"set": "sv03",
+		"card": "196",
+		"variant": {
+			"type": "holo",
+			"stamps": [
+				"player-rewards-program"
+			]
+		},
+		"provider": "cardmarket",
+		"id": 811245,
+		"why": "TCGdex lists 811245 as a TCGplayer id, but no TCGplayer product has it; it is Cardmarket's \"Town Store\" in the Prize Pack expansion (6041), so the two fields are swapped"
 	},
 	{
-		"set": "sv03", "card": "196", "variant": { "type": "holo", "stamps": ["player-rewards-program"] }, "provider": "cardmarket", "id": 811161,
-		"why": "see sv03 164"
+		"set": "sv03",
+		"card": "196",
+		"variant": {
+			"type": "holo",
+			"stamps": [
+				"player-rewards-program"
+			]
+		},
+		"provider": "tcgplayer",
+		"id": null,
+		"why": "811245 is a Cardmarket id (see the Cardmarket fix above); this variant's TCGplayer product is not known"
 	},
 	{
-		"set": "sve", "card": "002", "variant": { "type": "reverse", "foil": "cosmos", "stamps": ["player-rewards-program"] }, "provider": "tcgplayer", "id": null,
+		"set": "sve",
+		"card": "002",
+		"variant": {
+			"type": "reverse",
+			"foil": "cosmos",
+			"stamps": [
+				"player-rewards-program"
+			]
+		},
+		"provider": "tcgplayer",
+		"id": null,
 		"why": "TCGplayer 651037 is \"Basic Fire Energy - 010 (Cosmos Holo)\" in TCGCSV's Prize Pack group: card 010's, not 002's (the two Fire Energy look alike by name)"
 	},
 	{
-		"set": "sve", "card": "010", "variant": { "type": "reverse", "foil": "cosmos", "stamps": ["player-rewards-program"] }, "provider": "tcgplayer", "id": 651037,
+		"set": "sve",
+		"card": "010",
+		"variant": {
+			"type": "reverse",
+			"foil": "cosmos",
+			"stamps": [
+				"player-rewards-program"
+			]
+		},
+		"provider": "tcgplayer",
+		"id": 651037,
 		"why": "see sve 002"
+	},
+	{
+		"set": "sv10",
+		"card": "024",
+		"variant": {
+			"type": "holo",
+			"foil": "cosmos"
+		},
+		"provider": "cardmarket",
+		"id": null,
+		"why": "878005 is \"Ethan's Magcargo\" in Cardmarket's catalogue, not Rellor; Rellor's own cosmos product is not known"
+	},
+	{
+		"set": "sv10.5b",
+		"card": "077",
+		"variant": {
+			"type": "reverse",
+			"foil": "pokeball"
+		},
+		"provider": "cardmarket",
+		"id": 836467,
+		"why": "Cardmarket's catalogue: 836467 is Rufflet and 836468 is Braviary; TCGTracking has them crossed"
+	},
+	{
+		"set": "sv10.5b",
+		"card": "078",
+		"variant": {
+			"type": "reverse",
+			"foil": "pokeball"
+		},
+		"provider": "cardmarket",
+		"id": 836468,
+		"why": "see sv10.5b 077"
+	},
+	{
+		"set": "swsh10.5",
+		"card": "052",
+		"variant": {
+			"type": "holo",
+			"foil": "cosmos"
+		},
+		"provider": "cardmarket",
+		"id": 669497,
+		"why": "669498 is \"Snorlax\" in Cardmarket's catalogue; Blissey's two products in that expansion (5051) are 665274 (the regular) and 669497"
+	},
+	{
+		"set": "sv04.5",
+		"card": "011",
+		"variant": {
+			"type": "normal"
+		},
+		"provider": "cardmarket",
+		"id": 751537,
+		"why": "87808 is not in Cardmarket's catalogue; 751537 is the Numel of Paldean Fates (exp 5546), the only one there (TCGdex has it)"
+	},
+	{
+		"set": "sv04.5",
+		"card": "011",
+		"variant": {
+			"type": "reverse"
+		},
+		"provider": "cardmarket",
+		"id": 751537,
+		"why": "see sv04.5 011 normal"
+	},
+	{
+		"set": "mfb",
+		"card": "033",
+		"variant": {
+			"type": "normal",
+			"stamps": [
+				"squirtle"
+			]
+		},
+		"provider": "cardmarket",
+		"id": 742019,
+		"why": "TCGdex has the two ids of My First Battle's Squirtle Potion swapped: 524029 is not in Cardmarket's catalogue, 742019 is the Potion next to 741983, 741995 and 742007 (the other three stamps); 524029 follows the TCGplayer ids 524026-524028"
+	},
+	{
+		"set": "mfb",
+		"card": "033",
+		"variant": {
+			"type": "normal",
+			"stamps": [
+				"squirtle"
+			]
+		},
+		"provider": "tcgplayer",
+		"id": 524029,
+		"why": "see the mfb 033 Cardmarket fix"
+	},
+	{
+		"set": "swsh3",
+		"card": "195",
+		"variant": {
+			"type": "holo",
+			"foil": "rainbow"
+		},
+		"provider": "cardmarket",
+		"id": 483869,
+		"why": "483864 (TCGTracking's) is not in Cardmarket's catalogue; 483869 (TCGdex's) is a Pokemon Breeder's Nurturing of Darkness Ablaze (exp 3199)"
 	}
 ]

@@ -75,7 +75,7 @@ export async function fetchCard(setId: string, localId: string, lang: string, fr
  * Keyed by the scraped localId (as a string, e.g. "5"). A card or language TCGdex lacks is simply absent.
  * `fresh` ignores the on-disk cache, so a card TCGdex has since filled in is picked up.
  */
-export async function fetchCardExtras(setId: string, localIds: string[], warn: (m: string) => void, fresh = false): Promise<Map<string, CardExtras>> {
+export async function fetchCardExtras(setId: string, localIds: string[], warn: (m: string) => void, fresh = false, stats?: { failures: number }): Promise<Map<string, CardExtras>> {
 	const limit = pLimit(6)
 	const out = new Map<string, CardExtras>()
 	let failures = 0
@@ -105,6 +105,7 @@ export async function fetchCardExtras(setId: string, localIds: string[], warn: (
 		}
 		out.set(raw, extras)
 	})))
+	if (stats) stats.failures = failures
 	if (failures > 3) warn(`TCGdex: ${failures} requests failed in total; those languages are missing`)
 	return out
 }

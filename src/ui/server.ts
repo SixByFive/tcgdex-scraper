@@ -27,6 +27,8 @@ import { buildSetMeta } from '../sources/set-meta.ts'
 import { emitExperimental } from '../emit/experimental.ts'
 import { defaultRepo, intlDir, listSets as listExperimentalSets } from '../util/experimental.ts'
 import { buildCatalog, registrySet } from './catalog.ts'
+import { applyFixes, buildSet, loadFixes, registrySets, sameFix, saveFixes, writeSet, type ProductFix } from '../sources/sealed-set.ts'
+import { fileSafe } from '../util/experimental.ts'
 
 const PUBLIC_DIR = join(dirname(fileURLToPath(import.meta.url)), 'public')
 const MIME: Record<string, string> = {
@@ -179,10 +181,13 @@ function spawnJob(setId: string, kind: string, args: string[]): { running: boole
 	runningJobs.set(key, child)
 	broadcast(setId, 'job-started', { kind })
 
-	child.stdout?.on('data', (d) => process.stdout.write(`[${kind}:${setId}] ${d}`))
+	// a cross-check's result is its output: sent to the page when the job ends, besides the server's own log
+	let output = ''
+	child.stdout?.on('data', (d) => { if (kind === 'crosscheck') output += d; process.stdout.write(`[${kind}:${setId}] ${d}`) })
 	child.stderr?.on('data', (d) => process.stderr.write(`[${kind}:${setId}] ${d}`))
 	child.on('close', (code) => {
 		runningJobs.delete(key)
+		if (kind === 'crosscheck') broadcast(setId, 'job-output', { kind, code, text: output })
 		broadcast(setId, 'job-done', { kind, code })
 	})
 
@@ -553,6 +558,48 @@ export async function startUi(port = 5173): Promise<void> {
 			const cards = await listCards(setId)
 			const found = cards.find((c) => c.structural.localId === localId)
 			return jsonRes(res, found ?? null, found ? 200 : 404)
+		}
+
+		// ---- Sealed products: build a set's products, look at where each line came from, correct them, write them ---------------------
+		if (path === '/api/products/sets' && req.method === 'GET') {
+			const repo = await currentRepo()
+			const fixes = await loadFixes()
+			const sets = await Promise.all((await registrySets()).filter((x) => x.tcgplayerGroup).map(async (x) => {
+				let written = 0
+				try { written = (await readdir(join(intlDir(repo), 'products', fileSafe(x.name)))).filter((f) => f.endsWith('.ts')).length } catch {}
+				return { id: x.id, name: x.name, series: x.series, releaseDate: x.releaseDate ?? null, written, fixes: fixes.filter((f) => f.set === x.id).length }
+			}))
+			return jsonRes(res, { repo, sets })
+		}
+		const productsSet = path.match(/^\/api\/products\/set\/([^/]+)(\/write)?$/)
+		if (productsSet) {
+			const setId = decodeURIComponent(productsSet[1]!)
+			try {
+				const built = await buildSet(setId, { repo: await currentRepo(), refresh: url.searchParams.get('refresh') === '1' })
+				if (productsSet[2]) {
+					if (req.method !== 'POST') { res.writeHead(405).end(); return }
+					return jsonRes(res, { written: await writeSet(built), folder: built.folder })
+				}
+				return jsonRes(res, built)
+			} catch (err) {
+				return jsonRes(res, { error: err instanceof Error ? err.message : String(err) }, 500)
+			}
+		}
+		if (path === '/api/products/fix' && req.method === 'POST') {
+			let fix: ProductFix
+			try { fix = await readJsonBody<ProductFix>(req) } catch { res.writeHead(400).end('bad json'); return }
+			if (!fix?.set || !fix.product || !['exclude', 'type', 'name', 'contents', 'price'].includes(fix.op)) return jsonRes(res, { error: 'set, product and a known op are required' }, 400)
+			const all = (await loadFixes()).filter((f) => !sameFix(f, fix))
+			all.push(fix)
+			await saveFixes(all)
+			return jsonRes(res, { fixes: all.filter((f) => f.set === fix.set) })
+		}
+		if (path === '/api/products/unfix' && req.method === 'POST') {
+			let fix: ProductFix
+			try { fix = await readJsonBody<ProductFix>(req) } catch { res.writeHead(400).end('bad json'); return }
+			const all = (await loadFixes()).filter((f) => !sameFix(f, fix))
+			await saveFixes(all)
+			return jsonRes(res, { fixes: all.filter((f) => f.set === fix.set) })
 		}
 
 		if (path === '/' || path === '') return serveStatic(res, join(PUBLIC_DIR, 'index.html'))
