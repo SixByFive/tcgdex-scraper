@@ -75,7 +75,7 @@ export async function emitExperimental(opts: ExperimentalEmitOptions): Promise<E
 	if (enriched) {
 		const when = scraped.map((c) => c.enrichedAt).filter(Boolean).sort().pop()!.slice(0, 10)
 		log(`[emit] using the variants and TCGdex data stored with the scrape (${when}); run enrich-scraped to refresh`)
-		if (!opts.noVariants && scraped.some((c) => c.variants)) variants = new Map(scraped.flatMap((c) => c.variants ? [[cardKey(c) ?? '', sortVariants([...c.variants])] as const] : []))
+		if (!opts.noVariants && scraped.some((c) => c.variants)) variants = new Map(scraped.flatMap((c) => c.variants ? [[cardLocalId(c), sortVariants([...c.variants])] as const] : []))
 		else if (!opts.noVariants) warn('the scrape has no variants (no TCGplayer group was found): cards are written without them')
 		if (!opts.noTcgdex) extras = new Map(scraped.flatMap((c) => c.tcgdex ? [[tcgdexLocalId(c), c.tcgdex] as const] : []))
 	} else {
@@ -185,7 +185,8 @@ export async function emitExperimental(opts: ExperimentalEmitOptions): Promise<E
 		if (s.resistances?.length) out.resistances = typeValues(s.resistances)
 
 		if (variants) {
-			const list = variants.get(cardKey(card) ?? '')
+			// stored variants are keyed by the card's id (cards can share a printed number: four Classic Collection cards are "15")
+			const list = variants.get(enriched && !opts.noVariants && scraped.some((c) => c.variants) ? cardLocalId(card) : cardKey(card) ?? '')
 			if (list?.length) {
 				// the repo accepts a provider's id on a variant only when the provider has a price group for its type (Cardmarket and
 				// TCGplayer have normal/holo/reverse): a lenticular or metal variant keeps its other ids and loses these

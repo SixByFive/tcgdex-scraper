@@ -153,6 +153,12 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<void
 			// that card's ids by mistake (TCGdex gave My First Battle's Charmander the Bulbasaur product). The variant stays, its ids go.
 			const mine = nameKey(enName ?? '')
 			e.variants = e.variants.map((tv) => {
+				// a product that isn't in this set's TCGTracking group is another set's (the Classic Collection's stamped Reshiram has the
+				// Celebrations Reshiram's ids)
+				if (tv.tcgplayer && productNames.size && !productNames.has(tv.tcgplayer)) {
+					warn(`${opts.setId}-${tcgdexLocalId(card)}: TCGdex gives ${enName} TCGplayer product ${tv.tcgplayer}, which is not in TCGTracking's group ${groupId}: ids dropped`)
+					return { ...tv, tcgplayer: undefined, cardmarket: undefined, cardtrader: undefined }
+				}
 				const owner = tv.tcgplayer ? productNames.get(tv.tcgplayer) : undefined
 				if (owner && owner !== mine && setNames.has(owner)) {
 					warn(`${opts.setId}-${tcgdexLocalId(card)}: TCGdex gives ${enName} TCGplayer product ${tv.tcgplayer}, which TCGTracking names "${owner}" (another card of the set): ids dropped`)
