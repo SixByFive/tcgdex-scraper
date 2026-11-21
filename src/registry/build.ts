@@ -94,11 +94,15 @@ async function loadExpansions(refresh: boolean, log: (l: string) => void): Promi
 
 /** TCGTracking names its sets "SV03: Obsidian Flames", "SWSH: Crown Zenith: Galarian Gallery" or just "Celebrations". */
 function trackedNames(s: TrackedSetSummary): string[] {
-	const names = [norm(s.name)]
-	const stripped = s.name.replace(/^[A-Z][A-Z0-9]*\d*:\s*/, '')
-	if (stripped !== s.name) names.push(norm(stripped))
+	const names = [groupKey(s.name)]
+	// "SV03: Obsidian Flames"; older eras "SM - Forbidden Light", "XY - Steam Siege", "EX Dragon Frontiers"
+	const stripped = s.name.replace(/^[A-Z][A-Z0-9]*\d*:\s*/, '').replace(/^(SM|XY|BW|HS|DP|EX)\s+-\s+/, '').replace(/^EX\s+(?=[A-Z])/, '')
+	if (stripped !== s.name) names.push(groupKey(stripped))
 	return names
 }
+
+/** "Black and White" (TCGplayer) and "Black & White" (TCGdex) are the same name. */
+const groupKey = (s: string) => norm(s.replace(/&/g, ' and '))
 
 export async function buildRegistry(opts: { series: string[]; refreshExpansions?: boolean; log?: (l: string) => void }): Promise<Registry> {
 	const log = opts.log ?? console.log
@@ -125,6 +129,7 @@ export async function buildRegistry(opts: { series: string[]; refreshExpansions?
 				slug: null, tcgplayerGroup: null, notes: []
 			}
 			const wanted = norm(entry.name)
+			const wantedGroup = groupKey(entry.name)
 
 			// pokemon.com slug
 			const slugs = slugsByName.get(wanted) ?? []
@@ -132,7 +137,7 @@ export async function buildRegistry(opts: { series: string[]; refreshExpansions?
 			else if (slugs.length > 1) entry.notes.push(`pokemon.com: several expansions named like this (${slugs.join(', ')}): set it in overrides`)
 
 			// TCGTracking group, the one released the same day when several share the name
-			const groups = tracked.filter((t) => trackedNames(t).includes(wanted))
+			const groups = tracked.filter((t) => trackedNames(t).includes(wantedGroup))
 			const sameDay = groups.filter((g) => g.published_on?.slice(0, 10) === entry.releaseDate)
 			const pick = groups.length === 1 ? groups[0] : sameDay.length === 1 ? sameDay[0] : undefined
 			if (pick) entry.tcgplayerGroup = pick.id

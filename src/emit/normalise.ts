@@ -98,7 +98,7 @@ export function normaliseKind(card: ScrapedCard): Normalised {
 			stage = ci(STAGES, raw)
 			if (!stage) warnings.push(`unmapped stage "${raw}"`)
 		}
-	} else if (category === 'Trainer' && /^(special|basic)$/i.test(sub) && /\benergy$/i.test(en?.name ?? '')) {
+	} else if (category === 'Trainer' && /^(special|basic)$/i.test(sub) && /\benergy\b/i.test(en?.name ?? '')) {
 		// pokemon.com files some Energy cards under Trainer: Special Energy (Ignition Energy) as "Special", Basic Energy as "Basic"
 		category = 'Energy'
 		energyType = /^special$/i.test(sub) ? 'Special' : 'Normal'
@@ -106,7 +106,7 @@ export function normaliseKind(card: ScrapedCard): Normalised {
 		trainerType = ci(TRAINER_TYPES, sub) ?? (/tool/i.test(sub) ? 'Tool' : undefined)
 		if (!trainerType && sub) warnings.push(`unmapped trainer type "${sub}"`)
 	} else if (category === 'Energy') {
-		energyType = sub === 'Special' ? 'Special' : sub === 'Normal' ? 'Normal' : undefined
+		energyType = sub === 'Special' ? 'Special' : sub === 'Normal' || sub === 'Basic' ? 'Normal' : undefined
 		if (!energyType) warnings.push(`unmapped energy type "${sub}"`)
 	}
 

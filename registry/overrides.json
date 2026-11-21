@@ -78,13 +78,16 @@
 		]
 	},
 	"smp": {
-		"slug": "smp"
+		"slug": "smp",
+		"tcgplayerGroup": 1861
 	},
 	"xyp": {
-		"slug": "xyp"
+		"slug": "xyp",
+		"tcgplayerGroup": 1451
 	},
 	"bwp": {
-		"slug": "bwp"
+		"slug": "bwp",
+		"tcgplayerGroup": 1407
 	},
 	"sma": {
 		"id": "sm11.5sv",
@@ -95,7 +98,8 @@
 		"slug": "xya"
 	},
 	"hgssp": {
-		"slug": "hsp"
+		"slug": "hsp",
+		"tcgplayerGroup": 1453
 	},
 	"ex6": {
 		"slug": "ex6"
@@ -235,7 +239,8 @@
 		"source": "tcgdex"
 	},
 	"dpp": {
-		"source": "tcgdex"
+		"source": "tcgdex",
+		"tcgplayerGroup": 1421
 	},
 	"pop5": {
 		"source": "tcgdex"
@@ -394,5 +399,11 @@
 	},
 	"miscp": {
 		"source": "tcgdex"
+	},
+	"sm1": {
+		"tcgplayerGroup": 1863
+	},
+	"xy1": {
+		"tcgplayerGroup": 1387
 	}
 }

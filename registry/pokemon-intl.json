@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-20T21:42:32.417Z",
+ "generatedAt": "2026-11-20T23:31:09.941Z",
  "sets": [
   {
    "id": "me06",
@@ -276,9 +276,7 @@
    "total": 34,
    "slug": null,
    "tcgplayerGroup": 23330,
-   "notes": [
-    "TCGdex and TCGplayer count 48 products: the set has 34 cards, some in several printings (Blue Border, stamped)"
-   ],
+   "notes": [],
    "source": "tcgdex",
    "keepTcgdexIds": true
   },
@@ -515,7 +513,6 @@
    "slug": "cel25c",
    "tcgplayerGroup": 2931,
    "notes": [],
-   "idPrefix": "CC",
    "cardKeys": [
     "2_A",
     "4_A",
@@ -542,7 +539,8 @@
     "97_A",
     "76_A",
     "60_A"
-   ]
+   ],
+   "idPrefix": "CC"
   },
   {
    "id": "cel25",
@@ -708,7 +706,7 @@
    "official": 236,
    "total": 271,
    "slug": "sm12",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 2534,
    "notes": []
   },
   {
@@ -724,19 +722,6 @@
    "source": "tcgdex"
   },
   {
-   "id": "sm11.5sv",
-   "series": "sm",
-   "name": "Hidden Fates Shiny Vault",
-   "releaseDate": "2019-08-23",
-   "official": 94,
-   "total": 94,
-   "slug": "sma",
-   "tcgplayerGroup": 2594,
-   "notes": [],
-   "tcgdexId": "sma",
-   "plainCardIds": true
-  },
-  {
    "id": "sm115",
    "series": "sm",
    "name": "Hidden Fates",
@@ -748,6 +733,19 @@
    "notes": []
   },
   {
+   "id": "sm11.5sv",
+   "series": "sm",
+   "name": "Hidden Fates Shiny Vault",
+   "releaseDate": "2019-08-23",
+   "official": 94,
+   "total": 94,
+   "slug": "sma",
+   "tcgplayerGroup": 2594,
+   "notes": [],
+   "plainCardIds": true,
+   "tcgdexId": "sma"
+  },
+  {
    "id": "sm11",
    "series": "sm",
    "name": "Unified Minds",
@@ -755,7 +753,7 @@
    "official": 236,
    "total": 258,
    "slug": "sm11",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 2464,
    "notes": []
   },
   {
@@ -766,7 +764,7 @@
    "official": 214,
    "total": 234,
    "slug": "sm10",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 2420,
    "notes": []
   },
   {
@@ -788,7 +786,7 @@
    "official": 181,
    "total": 196,
    "slug": "sm9",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 2377,
    "notes": []
   },
   {
@@ -799,7 +797,7 @@
    "official": 214,
    "total": 236,
    "slug": "sm8",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 2328,
    "notes": []
   },
   {
@@ -833,7 +831,7 @@
    "official": 168,
    "total": 183,
    "slug": "sm7",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 2278,
    "notes": []
   },
   {
@@ -844,7 +842,7 @@
    "official": 131,
    "total": 146,
    "slug": "sm6",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 2209,
    "notes": []
   },
   {
@@ -855,7 +853,7 @@
    "official": 156,
    "total": 173,
    "slug": "sm5",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 2178,
    "notes": []
   },
   {
@@ -866,7 +864,7 @@
    "official": 111,
    "total": 125,
    "slug": "sm4",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 2071,
    "notes": []
   },
   {
@@ -888,7 +886,7 @@
    "official": 147,
    "total": 169,
    "slug": "sm3",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1957,
    "notes": []
   },
   {
@@ -911,13 +909,13 @@
    "official": 145,
    "total": 169,
    "slug": "sm2",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1919,
    "notes": []
   },
   {
    "id": "tk-sm-r",
    "series": "tk",
-   "name": "SM trainer Kit (Alolan Raichu)",
+   "name": "SM Trainer Kit (Alolan Raichu)",
    "releaseDate": "2017-04-21",
    "official": 30,
    "total": 30,
@@ -929,7 +927,7 @@
   {
    "id": "tk-sm-l",
    "series": "tk",
-   "name": "SM trainer Kit (Lycanroc)",
+   "name": "SM Trainer Kit (Lycanroc)",
    "releaseDate": "2017-04-21",
    "official": 30,
    "total": 30,
@@ -949,7 +947,7 @@
    "official": 248,
    "total": 248,
    "slug": "smp",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1861,
    "notes": []
   },
   {
@@ -960,7 +958,7 @@
    "official": 149,
    "total": 172,
    "slug": "sm1",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1863,
    "notes": []
   },
   {
@@ -971,7 +969,7 @@
    "official": 108,
    "total": 113,
    "slug": "xy12",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1842,
    "notes": []
   },
   {
@@ -994,7 +992,7 @@
    "official": 114,
    "total": 116,
    "slug": "xy11",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1815,
    "notes": []
   },
   {
@@ -1005,13 +1003,13 @@
    "official": 124,
    "total": 129,
    "slug": "xy10",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1780,
    "notes": []
   },
   {
    "id": "tk-xy-su",
    "series": "tk",
-   "name": "XY trainer Kit (Suicune)",
+   "name": "XY Trainer Kit (Suicune)",
    "releaseDate": "2016-04-27",
    "official": 30,
    "total": 30,
@@ -1023,7 +1021,7 @@
   {
    "id": "tk-xy-p",
    "series": "tk",
-   "name": "XY trainer Kit (Pikachu Libre)",
+   "name": "XY Trainer Kit (Pikachu Libre)",
    "releaseDate": "2016-04-27",
    "official": 30,
    "total": 30,
@@ -1051,7 +1049,7 @@
    "official": 122,
    "total": 126,
    "slug": "xy9",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1701,
    "notes": []
   },
   {
@@ -1074,7 +1072,7 @@
    "official": 162,
    "total": 165,
    "slug": "xy8",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1661,
    "notes": []
   },
   {
@@ -1085,7 +1083,7 @@
    "official": 98,
    "total": 101,
    "slug": "xy7",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1576,
    "notes": []
   },
   {
@@ -1096,13 +1094,13 @@
    "official": 108,
    "total": 112,
    "slug": "xy6",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1534,
    "notes": []
   },
   {
    "id": "tk-xy-latio",
    "series": "tk",
-   "name": "XY trainer Kit (Latios)",
+   "name": "XY Trainer Kit (Latios)",
    "releaseDate": "2015-04-29",
    "official": 30,
    "total": 30,
@@ -1114,7 +1112,7 @@
   {
    "id": "tk-xy-latia",
    "series": "tk",
-   "name": "XY trainer Kit (Latias)",
+   "name": "XY Trainer Kit (Latias)",
    "releaseDate": "2015-04-29",
    "official": 30,
    "total": 30,
@@ -1142,7 +1140,7 @@
    "official": 160,
    "total": 164,
    "slug": "xy5",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1509,
    "notes": []
   },
   {
@@ -1153,13 +1151,13 @@
    "official": 119,
    "total": 124,
    "slug": "xy4",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1494,
    "notes": []
   },
   {
    "id": "tk-xy-w",
    "series": "tk",
-   "name": "XY trainer Kit (Wigglytuff)",
+   "name": "XY Trainer Kit (Wigglytuff)",
    "releaseDate": "2014-11-01",
    "official": 30,
    "total": 30,
@@ -1171,7 +1169,7 @@
   {
    "id": "tk-xy-b",
    "series": "tk",
-   "name": "XY trainer Kit (Bisharp)",
+   "name": "XY Trainer Kit (Bisharp)",
    "releaseDate": "2014-11-01",
    "official": 30,
    "total": 30,
@@ -1188,7 +1186,7 @@
    "official": 111,
    "total": 114,
    "slug": "xy3",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1481,
    "notes": []
   },
   {
@@ -1211,13 +1209,13 @@
    "official": 106,
    "total": 110,
    "slug": "xy2",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1464,
    "notes": []
   },
   {
    "id": "tk-xy-sy",
    "series": "tk",
-   "name": "XY trainer Kit (Sylveon)",
+   "name": "XY Trainer Kit (Sylveon)",
    "releaseDate": "2014-03-12",
    "official": 30,
    "total": 30,
@@ -1229,7 +1227,7 @@
   {
    "id": "tk-xy-n",
    "series": "tk",
-   "name": "XY trainer Kit (Noivern)",
+   "name": "XY Trainer Kit (Noivern)",
    "releaseDate": "2014-03-12",
    "official": 30,
    "total": 30,
@@ -1259,7 +1257,7 @@
    "official": 146,
    "total": 146,
    "slug": "xy1",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1387,
    "notes": []
   },
   {
@@ -1304,7 +1302,7 @@
    "official": 211,
    "total": 216,
    "slug": "xyp",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1451,
    "notes": []
   },
   {
@@ -1421,7 +1419,7 @@
   {
    "id": "tk-bw-z",
    "series": "tk",
-   "name": "BW trainer Kit (Zoroark)",
+   "name": "BW Trainer Kit (Zoroark)",
    "releaseDate": "2011-09-01",
    "official": 30,
    "total": 30,
@@ -1433,7 +1431,7 @@
   {
    "id": "tk-bw-e",
    "series": "tk",
-   "name": "BW trainer Kit (Excadrill)",
+   "name": "BW Trainer Kit (Excadrill)",
    "releaseDate": "2011-09-01",
    "official": 30,
    "total": 30,
@@ -1473,7 +1471,7 @@
    "official": 101,
    "total": 101,
    "slug": "bwp",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1407,
    "notes": []
   },
   {
@@ -1484,7 +1482,7 @@
    "official": 114,
    "total": 115,
    "slug": "bw1",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1400,
    "notes": []
   },
   {
@@ -1534,7 +1532,7 @@
   {
    "id": "tk-hs-r",
    "series": "tk",
-   "name": "HS trainer Kit (Raichu)",
+   "name": "HS Trainer Kit (Raichu)",
    "releaseDate": "2010-05-01",
    "official": 30,
    "total": 30,
@@ -1546,7 +1544,7 @@
   {
    "id": "tk-hs-g",
    "series": "tk",
-   "name": "HS trainer Kit (Gyarados)",
+   "name": "HS Trainer Kit (Gyarados)",
    "releaseDate": "2010-05-01",
    "official": 30,
    "total": 30,
@@ -1563,7 +1561,7 @@
    "official": 25,
    "total": 25,
    "slug": "hsp",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1453,
    "notes": []
   },
   {
@@ -1727,7 +1725,7 @@
   {
    "id": "tk-dp-m",
    "series": "tk",
-   "name": "DP trainer Kit (Manaphy)",
+   "name": "DP Trainer Kit (Manaphy)",
    "releaseDate": "2007-09-01",
    "official": 12,
    "total": 12,
@@ -1739,7 +1737,7 @@
   {
    "id": "tk-dp-l",
    "series": "tk",
-   "name": "DP trainer Kit (Lucario)",
+   "name": "DP Trainer Kit (Lucario)",
    "releaseDate": "2007-09-01",
    "official": 11,
    "total": 11,
@@ -1779,7 +1777,7 @@
    "official": 56,
    "total": 56,
    "slug": null,
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1421,
    "notes": [],
    "source": "tcgdex"
   },
@@ -1791,7 +1789,7 @@
    "official": 130,
    "total": 130,
    "slug": "dp1",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1430,
    "notes": []
   },
   {
@@ -1814,7 +1812,7 @@
    "official": 108,
    "total": 108,
    "slug": "ex16",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1383,
    "notes": []
   },
   {
@@ -1825,7 +1823,7 @@
    "official": 101,
    "total": 101,
    "slug": "ex15",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1411,
    "notes": []
   },
   {
@@ -1836,7 +1834,7 @@
    "official": 100,
    "total": 100,
    "slug": "ex14",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1395,
    "notes": []
   },
   {
@@ -1859,7 +1857,7 @@
    "official": 110,
    "total": 111,
    "slug": "ex13",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1379,
    "notes": []
   },
   {
@@ -1877,7 +1875,7 @@
   {
    "id": "tk-ex-p",
    "series": "tk",
-   "name": "EX trainer Kit 2 (Plusle)",
+   "name": "EX Trainer Kit 2 (Plusle)",
    "releaseDate": "2006-03-01",
    "official": 12,
    "total": 12,
@@ -1889,7 +1887,7 @@
   {
    "id": "tk-ex-m",
    "series": "tk",
-   "name": "EX trainer Kit 2 (Minun)",
+   "name": "EX Trainer Kit 2 (Minun)",
    "releaseDate": "2006-03-01",
    "official": 12,
    "total": 12,
@@ -1906,7 +1904,7 @@
    "official": 92,
    "total": 93,
    "slug": "ex12",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1378,
    "notes": []
   },
   {
@@ -1917,7 +1915,7 @@
    "official": 113,
    "total": 114,
    "slug": "ex11",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1429,
    "notes": []
   },
   {
@@ -1940,7 +1938,7 @@
    "official": 115,
    "total": 117,
    "slug": "ex10",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1398,
    "notes": []
   },
   {
@@ -1963,7 +1961,7 @@
    "official": 106,
    "total": 107,
    "slug": "ex9",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1410,
    "notes": []
   },
   {
@@ -1974,7 +1972,7 @@
    "official": 107,
    "total": 108,
    "slug": "ex8",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1404,
    "notes": []
   },
   {
@@ -1985,7 +1983,7 @@
    "official": 109,
    "total": 111,
    "slug": "ex7",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1428,
    "notes": []
   },
   {
@@ -2008,13 +2006,13 @@
    "official": 112,
    "total": 116,
    "slug": "ex6",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1419,
    "notes": []
   },
   {
    "id": "tk-ex-latio",
    "series": "tk",
-   "name": "EX trainer Kit (Latios)",
+   "name": "EX Trainer Kit (Latios)",
    "releaseDate": "2004-07-01",
    "official": 10,
    "total": 10,
@@ -2026,7 +2024,7 @@
   {
    "id": "tk-ex-latia",
    "series": "tk",
-   "name": "EX trainer Kit (Latias)",
+   "name": "EX Trainer Kit (Latias)",
    "releaseDate": "2004-07-01",
    "official": 10,
    "total": 10,
@@ -2055,7 +2053,7 @@
    "official": 101,
    "total": 102,
    "slug": "ex5",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1416,
    "notes": []
   },
   {
@@ -2066,7 +2064,7 @@
    "official": 95,
    "total": 97,
    "slug": "ex4",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1377,
    "notes": []
   },
   {
@@ -2077,7 +2075,7 @@
    "official": 97,
    "total": 100,
    "slug": "ex3",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1376,
    "notes": []
   },
   {
@@ -2100,7 +2098,7 @@
    "official": 100,
    "total": 100,
    "slug": "ex2",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1392,
    "notes": []
   },
   {
@@ -2111,7 +2109,7 @@
    "official": 109,
    "total": 109,
    "slug": "ex1",
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1393,
    "notes": []
   },
   {

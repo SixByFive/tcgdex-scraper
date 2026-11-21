@@ -127,6 +127,8 @@ export async function buildSetMeta(opts: SetMetaOptions): Promise<SetMetaResult>
 	const trackedName = tracked?.set_name?.includes(':') ? tracked.set_name.slice(tracked.set_name.indexOf(':') + 1).trim() : tracked?.set_name
 	const name: Record<string, string> = {}
 	for (const lang of LANGS) if (byLang[lang]?.name) name[lang] = byLang[lang]!.name!
+	// TCGdex writes the kits "SM trainer Kit (Lycanroc)"
+	for (const l of Object.keys(name)) name[l] = name[l]!.replace(/\btrainer Kit\b/g, 'Trainer Kit')
 	if (opts.name) name.en = opts.name
 	if (!name.en && trackedName) name.en = trackedName
 	if (!name.en) throw new Error(`No English name for ${opts.setId}: pass --name`)

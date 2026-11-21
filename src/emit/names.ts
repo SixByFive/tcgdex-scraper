@@ -8,7 +8,7 @@ const plain = (s: unknown) => String(s ?? '').replace(/[​-‍﻿­]/g, '').rep
 export const looseName = (s: unknown): string =>
 	plain(s).replace(/\s*\([^)]*\)\s*/g, ' ').replace(/^basic /, '').replace(/\s+lv\.?\s*\d+$/, '')
 		// "Luxray GL LV.X": pokemon.com prints the GL / C symbol as an image and spaces "LV. X" differently; "Umbreon ☆" is "Umbreon" there
-		.replace(/\s+(?:[a-z]{1,2}\s+)?lv\.?\s*x$/, ' lv x').replace(/\s*[☆★]$/, '')
+		.replace(/\s+(?:[a-z]{1,2}\s+)?lv\.?\s*x$/, ' lv x').replace(/\s*[☆★◇◆]$/, '')
 		// a V-UNION is four cards: pokemon.com names each by its position ("Pikachu V-UNION Top Left"), TCGdex doesn't
 		.replace(/(v union) (?:top|bottom) (?:left|right)$/, '$1').replace(/\s+/g, ' ').trim()
 
