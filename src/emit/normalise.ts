@@ -107,6 +107,8 @@ export function normaliseKind(card: ScrapedCard): Normalised {
 		if (!trainerType && sub) warnings.push(`unmapped trainer type "${sub}"`)
 	} else if (category === 'Energy') {
 		energyType = sub === 'Special' ? 'Special' : sub === 'Normal' || sub === 'Basic' ? 'Normal' : undefined
+		// trainer-kit Energy cards carry no subtype at all; a plain "<Type> Energy" is a Basic Energy
+		if (!energyType && !sub && /^(basic )?(grass|fire|water|lightning|psychic|fighting|darkness|metal|fairy|dragon|colorless) energy$/i.test(en?.name?.trim() ?? '')) energyType = 'Normal'
 		if (!energyType) warnings.push(`unmapped energy type "${sub}"`)
 	}
 
