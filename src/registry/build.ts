@@ -43,6 +43,10 @@ export interface RegistrySet {
 	plainCardIds?: boolean
 	/** a TCGdex-built set whose card files keep TCGdex's unpadded ids ("1.ts"), instead of the repo's three digits ("001.ts") */
 	keepTcgdexIds?: boolean
+	/** a set that carries a prefixed subset inside it on TCGdex (Generations' "RC1".."RC32"): those cards are kept under their own ids, not mistaken for plain numbers */
+	letteredIds?: boolean
+	/** further TCGplayer groups holding cards of this set (Generations' Radiant Collection is group 1729, the set itself 1728) */
+	extraTcgplayerGroups?: number[]
 	/** a TCGdex set that lacks cards TCGplayer has: the names of the products to take from the set's TCGplayer group */
 	tcgcsvNames?: string[]
 	/** a set of reprints (W Promotional): card n is `reprints[n-1]`, a card of another set, under the promo's stamp */
@@ -52,7 +56,7 @@ export interface RegistrySet {
 
 export interface Registry { generatedAt: string; sets: RegistrySet[] }
 
-interface Override { id?: string; plainCardIds?: boolean; slug?: string | null; tcgplayerGroup?: number | null; skip?: string; source?: 'tcgdex' | 'tcgcsv'; official?: number; total?: number; cardKeys?: string[]; idPrefix?: string; keepTcgdexIds?: boolean; tcgcsvNames?: string[]; reprints?: { set: string; localId: string; stamps?: string[] }[] }
+interface Override { id?: string; plainCardIds?: boolean; slug?: string | null; tcgplayerGroup?: number | null; skip?: string; source?: 'tcgdex' | 'tcgcsv'; official?: number; total?: number; cardKeys?: string[]; idPrefix?: string; keepTcgdexIds?: boolean; letteredIds?: boolean; extraTcgplayerGroups?: number[]; tcgcsvNames?: string[]; reprints?: { set: string; localId: string; stamps?: string[] }[] }
 
 async function getJson<T>(url: string): Promise<T> {
 	const res = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': config.userAgent } })
@@ -153,6 +157,8 @@ export async function buildRegistry(opts: { series: string[]; refreshExpansions?
 				if (o.cardKeys) entry.cardKeys = o.cardKeys
 				if (o.idPrefix) entry.idPrefix = o.idPrefix
 				if (o.keepTcgdexIds) entry.keepTcgdexIds = true
+				if (o.letteredIds) entry.letteredIds = true
+				if (o.extraTcgplayerGroups) entry.extraTcgplayerGroups = o.extraTcgplayerGroups
 				if (o.plainCardIds) entry.plainCardIds = true
 				// the repo's id for the set, when it is not TCGdex's
 				if (o.id && o.id !== entry.id) { entry.tcgdexId = entry.id; entry.id = o.id }

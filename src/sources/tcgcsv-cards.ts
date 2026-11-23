@@ -165,6 +165,6 @@ export async function fillRegistrySet(set: Pick<RegistrySet, 'id' | 'source' | '
 		return
 	}
 	if (set.reprints?.length) { await fillFromReprints(set.id, set.reprints, { total, log }); return }
-	await fillFromTcgdex(set.id, { log })
+	await fillFromTcgdex(set.id, { log, lettered: set.letteredIds })
 	if (set.tcgcsvNames?.length && set.tcgplayerGroup) await fillFromTcgcsv(set.id, set.tcgplayerGroup, { names: set.tcgcsvNames, setTotal: total, log })
 }

@@ -95,11 +95,15 @@
 		"plainCardIds": true
 	},
 	"xya": {
-		"slug": "xya"
+		"slug": null,
+		"source": "tcgdex",
+		"tcgplayerGroup": 1938
 	},
 	"hgssp": {
 		"slug": "hsp",
-		"tcgplayerGroup": 1453
+		"tcgplayerGroup": 1453,
+		"source": "tcgdex",
+		"letteredIds": true
 	},
 	"ex6": {
 		"slug": "ex6"
@@ -187,6 +191,13 @@
 		"source": "tcgdex",
 		"tcgplayerGroup": 1532
 	},
+	"col1": {
+		"letteredIds": true
+	},
+	"g1": {
+		"letteredIds": true,
+		"extraTcgplayerGroups": [1729]
+	},
 	"rc": {
 		"tcgplayerGroup": 1465,
 		"source": "tcgcsv"
@@ -216,7 +227,8 @@
 		"tcgplayerGroup": 1540
 	},
 	"ru1": {
-		"source": "tcgdex"
+		"source": "tcgdex",
+		"tcgplayerGroup": 1433
 	},
 	"pop9": {
 		"source": "tcgdex"
@@ -280,20 +292,24 @@
 		"source": "tcgdex"
 	},
 	"np": {
-		"source": "tcgdex"
+		"source": "tcgdex",
+		"tcgplayerGroup": 1423
 	},
 	"ecard3": {
-		"source": "tcgdex"
+		"source": "tcgdex",
+		"letteredIds": true
 	},
 	"ecard2": {
-		"source": "tcgdex"
+		"source": "tcgdex",
+		"letteredIds": true
 	},
 	"bog": {
 		"source": "tcgdex",
 		"tcgplayerGroup": 1455
 	},
 	"ecard1": {
-		"source": "tcgdex"
+		"source": "tcgdex",
+		"tcgplayerGroup": 1375
 	},
 	"sp": {
 		"skip": "TCGdex lists no cards for this set; to be built from Bulbapedia"

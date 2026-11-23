@@ -47,10 +47,14 @@ export const tcgdexLocalId = (card: ScrapedCard): string =>
 export const collectorKey = (printed: string | number | null | undefined): string | undefined => {
 	const head = String(printed ?? '').split('/')[0]?.replace(/\s+/g, '')
 	if (!head) return undefined
+	// "055a/111" is the alternate art of card 55: key "55a"
+	const suffixed = head.match(/^(\d+)([A-Za-z])$/)
+	if (suffixed) return `${Number(suffixed[1])}${suffixed[2]!.toLowerCase()}`
 	return /^\d+$/.test(head) ? String(Number(head)) : alphaNumber(head)
 }
 export const cardKey = (card: ScrapedCard): string | undefined =>
 	alphaNumber(card.structural.printedNumber)
+		?? (card.sourceSlug === 'tcgdex' && /^\d+[A-Za-z]$/.test(String(card.structural.localId)) ? collectorKey(card.structural.localId) : undefined)
 		?? (card.sourceSlug === 'tcgdex' && /^[A-Za-z]+$/.test(String(card.structural.localId)) ? String(card.structural.localId).toUpperCase() : collectorKey(card.structural.number))
 
 export const toType = (t: EnergyTypes | string): PokemonType | undefined => ci(TYPES, t)
@@ -121,7 +125,7 @@ export function normaliseKind(card: ScrapedCard): Normalised {
 
 /** What pokemon.com prints for the rarity of a GX, EX or V card, and the schema's name for it (TCGdex and cards-database call a GX "Ultra Rare"). */
 const RARITY_ALIASES: Record<string, string> = {
-	'rare holo gx': 'Ultra Rare', 'rare holo ex': 'Ultra Rare', 'rare ultra': 'Ultra Rare',
+	'rare holo gx': 'Ultra Rare', 'rare holo ex': 'Ultra Rare', 'rare ultra': 'Ultra Rare', 'rare break': 'Ultra Rare',
 	'rare holo v': 'Holo Rare V', 'rare holo vmax': 'Holo Rare VMAX', 'rare holo vstar': 'Holo Rare VSTAR'
 }
 

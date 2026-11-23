@@ -4,7 +4,17 @@ const BASE = 'https://openapi.tcgtracking.com/v1'
 export const POKEMON_CATEGORY = 3
 
 async function getJson<T>(url: string, allow404 = false): Promise<T | null> {
-	const res = await fetch(url, { headers: { Accept: 'application/json' } })
+	// connect timeouts (undici's 10 s) come and go; a network error or a 5xx is tried again, a 4xx is not
+	let res: Response | undefined
+	for (let attempt = 1; ; attempt++) {
+		try {
+			res = await fetch(url, { headers: { Accept: 'application/json' } })
+			if (res.status < 500 || attempt >= 4) break
+		} catch (err) {
+			if (attempt >= 4) throw err
+		}
+		await new Promise((r) => setTimeout(r, 1000 * attempt))
+	}
 	if (res.status === 404 && allow404) return null
 	if (!res.ok) throw new Error(`TCGTracking ${url} -> ${res.status} ${res.statusText}`)
 	return res.json() as Promise<T>

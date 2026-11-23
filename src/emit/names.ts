@@ -1,7 +1,7 @@
 /**
  * Whether two sources' English names are the same card. Sources word a name differently without it being another card:
  * curly and straight apostrophes, hyphens, case; "Basic Grass Energy" vs "Grass Energy"; a tag in brackets ("Professor's Research
- * (Professor Rowan)" is a Professor's Research). Used only to check that a source's card at a number is the scraped card.
+ * (Professor Rowan)" is a Professor's Research); a space before a number ("Pokégear 3.0" is "Pokégear3.0" on pokemon.com). Used only to check that a source's card at a number is the scraped card.
  */
 const plain = (s: unknown) => String(s ?? '').replace(/[​-‍﻿­]/g, '').replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/-/g, ' ').replace(/\s+/g, ' ').toLowerCase().trim()
 
@@ -10,6 +10,6 @@ export const looseName = (s: unknown): string =>
 		// "Luxray GL LV.X": pokemon.com prints the GL / C symbol as an image and spaces "LV. X" differently; "Umbreon ☆" is "Umbreon" there
 		.replace(/\s+(?:[a-z]{1,2}\s+)?lv\.?\s*x$/, ' lv x').replace(/\s*[☆★◇◆]$/, '')
 		// a V-UNION is four cards: pokemon.com names each by its position ("Pikachu V-UNION Top Left"), TCGdex doesn't
-		.replace(/(v union) (?:top|bottom) (?:left|right)$/, '$1').replace(/\s+/g, ' ').trim()
+		.replace(/(v union) (?:top|bottom) (?:left|right)$/, '$1').replace(/\s+/g, ' ').replace(/(\p{L})\s+(?=\d)/gu, '$1').trim()
 
 export const sameCardName = (a: unknown, b: unknown): boolean => looseName(a) === looseName(b)

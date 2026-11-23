@@ -3,7 +3,7 @@ import { readFile, readdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import config from '../../config.json' with { type: 'json' }
 import type { ScrapedCard } from '../types/scraped.ts'
-import { buildVariants, nameKey } from '../emit/variants.ts'
+import { buildVariants, idOf, nameKey, productNumberKey } from '../emit/variants.ts'
 import { fetchCardExtras } from './tcgdex-cards.ts'
 import { buildSetMeta } from './set-meta.ts'
 import { defaultRepo, listSets, loadSchema } from '../util/experimental.ts'
@@ -69,6 +69,8 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<Enri
 	const setNames = new Set(cards.map(({ card }) => nameKey(card.locales.en?.name ?? '')))
 	let cardNameKey: (card: ScrapedCard) => string = (card) => nameKey(card.locales.en?.name ?? '')
 	let groupId = opts.tcgplayerSet
+	// collector key -> the extra TCGplayer group its variants came from
+	const extraKeyGroup = new Map<string, number>()
 	if (!opts.noVariants) {
 		if (!groupId) {
 			try { groupId = (await listSets(repo)).find((s) => s.id === opts.setId)?.prices?.tcgplayer } catch {}
@@ -99,7 +101,7 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<Enri
 			const ownDeck = deckOf(registrySets.find((s) => s.id === opts.setId)?.name)
 			const otherDecks = registrySets.filter((s) => s.id !== opts.setId && s.tcgplayerGroup === groupId).map((s) => deckOf(s.name)).filter((x): x is string => Boolean(x) && x !== ownDeck)
 			const exclude = (p: { name: string }) => otherDecks.some((d) => [...p.name.matchAll(/\(([^)]+)\)/g)].some((m) => m[1]!.toLowerCase().includes(d)))
-			variants = await buildVariants(groupId, schema, warn, undefined, cardNames, exclude)
+			variants = await buildVariants(groupId, schema, warn, undefined, cardNames, otherDecks.length ? exclude : undefined)
 			// A reprint set's products carry the printed numbers of the sets the cards come from (30th Classic Collection's Charizard
 			// is "4/102"), so a number points at the wrong card. When the names behind the numbers don't match the cards' names,
 			// every card is matched by name instead.
@@ -140,6 +142,14 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<Enri
 				}
 				variants = await buildVariants(groupId, schema, warn, (p) => productKey.get(p.id) ?? nameKey(p.name))
 				matchByName = true
+			}
+			// cards of the set that TCGplayer lists in other groups (Generations' Radiant Collection): their products and variants are
+			// added, and the cards remember the group they came from
+			for (const extra of registrySets.find((s) => s.id === opts.setId)?.extraTcgplayerGroups ?? []) {
+				log(`[enrich] TCGTracking group ${extra} (more cards of ${opts.setId})`)
+				const more = await buildVariants(extra, schema, warn, undefined, cardNames)
+				for (const [k, v] of more) if (!variants.has(k)) { variants.set(k, v); extraKeyGroup.set(k, extra) }
+				for (const p of (await fetchCards(extra)).products) { productIds.set(p.id, { cardmarket_id: p.cardmarket_id, cardtrader_id: p.cardtrader_id }); productNames.set(p.id, nameKey(p.name)); productList.push(p) }
 			}
 		}
 	}
@@ -182,11 +192,13 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<Enri
 	const claimed = { tcgplayer: new Map<number, string>(), cardmarket: new Map<number, string>(), cardtrader: new Map<number, string>() }
 	const schema = await loadSchema(repo)
 	for (const { file, card } of cards) {
+		// the variants TCGdex lists whose ids were all another card's product: dropped below unless they find a product of their own
+		const idsFromAnotherCard = new Set<string>()
 		let e = extras?.get(tcgdexLocalId(card))
 		// TCGdex gave nothing for a card it had answered for before (a failed request): the earlier answer stays
 		if (e && !e.name && card.tcgdex?.name) { e = card.tcgdex; keptEarlier++ }
 		let list = variants?.get(matchByName ? cardNameKey(card) : cardKey(card) ?? '')
-		if (variants) card.tcgplayerSet = groupId
+		if (variants) card.tcgplayerSet = extraKeyGroup.get(matchByName ? '' : cardKey(card) ?? '') ?? groupId
 		// variants TCGdex lists that TCGTracking has no product for (stamps, cosmos/gold patterns, jumbo), only for the same card
 		const enName = card.locales.en?.name
 		const sameCard = e && (!e.name || (enName && sameCardName(e.name, enName)))
@@ -201,6 +213,7 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<Enri
 				const foreign = tv.tcgplayer && productNames.size && !productNames.has(tv.tcgplayer) ? otherSets.get(tv.tcgplayer) : undefined
 				if (foreign) {
 					warn(`${opts.setId}-${tcgdexLocalId(card)}: TCGdex gives ${enName} TCGplayer product ${tv.tcgplayer}, which ${foreign} holds: ids dropped`)
+					idsFromAnotherCard.add(idOf({ type: tv.type, foil: tv.foil, size: tv.size, stamps: tv.stamps }))
 					return { ...tv, tcgplayer: undefined, cardmarket: undefined, cardtrader: undefined }
 				}
 				// a Prize Pack product is one card's: TCGdex gave Tyranitar ex Toedscruel ex's (538743, "022/197")
@@ -242,6 +255,7 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<Enri
 		}
 		// a provider id belongs to one card: when two cards claim one (identical cards such as the two Fire Energy of SVE share a
 		// Player Rewards product), the first keeps it and the later one is left without, so nothing is attributed by guesswork
+		const lostToOther = new Set<object>()
 		for (const v of list ?? []) {
 			for (const key of ['tcgplayer', 'cardmarket', 'cardtrader'] as const) {
 				const id = v.prices[key]
@@ -249,11 +263,12 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<Enri
 				// a TCGplayer product numbered for another card of the set is that card's: this card doesn't claim it (not for sets
 				// matched by name, whose products carry the numbers of other sets)
 				if (key === 'tcgplayer' && !matchByName) {
-					const num = collectorKey(productList.find((p) => p.id === id)?.number)
+					const prod = productList.find((p) => p.id === id)
+					const num = prod ? productNumberKey(prod) : undefined
 					if (num !== undefined && num !== cardKey(card)) { warn(`${opts.setId}-${tcgdexLocalId(card)}: tcgplayer ${id} is product ${num}'s, not this card's: left off its ${v.type} variant`); delete v.prices[key]; continue }
 				}
 				const owner = claimed[key].get(id)
-				if (owner && owner !== file) { warn(`${opts.setId}-${tcgdexLocalId(card)}: ${key} ${id} is already used by another card of the set: left off this card's ${v.type} variant`); delete v.prices[key] }
+				if (owner && owner !== file) { warn(`${opts.setId}-${tcgdexLocalId(card)}: ${key} ${id} is already used by another card of the set: left off this card's ${v.type} variant`); delete v.prices[key]; lostToOther.add(v) }
 				else claimed[key].set(id, file)
 			}
 		}
@@ -280,6 +295,12 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<Enri
 				if (v.prices.cardtrader) claimed.cardtrader.set(v.prices.cardtrader, file)
 				warn(`${opts.setId}-${tcgdexLocalId(card)}: ${v.type} variant (${(v.stamps ?? []).join('+') || 'no stamp'}) had no TCGplayer id; took TCGTracking product ${pick.id} "${pick.name}"`)
 			}
+		}
+		// a variant whose only ids were another card's (TCGdex gave Aquapolis' Scizor H21 the Jumbo product of Scizor 32) and that found
+		// no product of its own is that other card's variant, not this card's: it is dropped instead of being left with no ids
+		if (list?.length && (lostToOther.size || idsFromAnotherCard.size)) {
+			const kept = list.filter((v) => !((lostToOther.has(v) || idsFromAnotherCard.has(idOf(v))) && Object.values(v.prices).every((x) => !x)))
+			if (kept.length !== list.length) { warn(`${opts.setId}-${tcgdexLocalId(card)}: dropped ${list.length - kept.length} variant(s) that only had another card's ids`); list = kept }
 		}
 		if (csvChanged) card.tcgcsvVariants = csvChanged
 		else delete card.tcgcsvVariants

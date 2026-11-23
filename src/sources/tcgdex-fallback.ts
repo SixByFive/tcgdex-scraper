@@ -96,7 +96,7 @@ async function buildFromTcgdex(o: { setId: string; localId: string; n: number; a
  * Writes the cards of `setId` that are missing from the cache. `only` limits it to those card numbers; `onlyMissing`
  * (default) skips cards already scraped. Returns the numbers written and the ones TCGdex has no card for.
  */
-export async function fillFromTcgdex(setId: string, opts: { only?: number[]; log?: (m: string) => void } = {}): Promise<{ written: number[]; notOnTcgdex: number[]; skipped: string[] }> {
+export async function fillFromTcgdex(setId: string, opts: { only?: number[]; lettered?: boolean; log?: (m: string) => void } = {}): Promise<{ written: number[]; notOnTcgdex: number[]; skipped: string[] }> {
 	const log = opts.log ?? console.log
 	const dir = join(config.cacheDir, 'pokemon-com', setId)
 	await mkdir(dir, { recursive: true })
@@ -113,12 +113,16 @@ export async function fillFromTcgdex(setId: string, opts: { only?: number[]; log
 		// An id of only letters ("Museum", the 30th Celebration's "B", "G", "R") can't be mistaken for another card and has no
 		// number: it is stored under its name, and only a full fill (no `only`) writes it.
 		const alphaOnly = /^[A-Za-z]+$/.test(localId)
-		if (!/^\d+$/.test(localId) && !(lettered && wanted) && !alphaOnly) { skipped.push(localId); continue }
-		const n = alphaOnly ? 0 : Number(lettered ? lettered[1] : localId)
-		const fileName = alphaOnly ? localId : String(n).padStart(3, '0')
-		if (haveFiles.has(fileName) || (wanted && (alphaOnly || !wanted.has(n)))) continue
+		// a number with a letter after it ("24a", the alternate art of card 24) is its own card: stored as "024a"
+		const suffixed = localId.match(/^(\d+)([A-Za-z])$/)
+		if (!/^\d+$/.test(localId) && !(lettered && (wanted || opts.lettered)) && !alphaOnly && !suffixed) { skipped.push(localId); continue }
+		// a set that carries a prefixed subset of its own ("RC1".."RC32" in Generations; registry `letteredIds`): kept under its own id
+		const own = Boolean(opts.lettered && lettered && !wanted)
+		const n = alphaOnly ? 0 : Number(suffixed ? suffixed[1] : lettered ? lettered[1] : localId)
+		const fileName = alphaOnly || own ? localId : String(n).padStart(3, '0') + (suffixed ? suffixed[2]!.toLowerCase() : '')
+		if (haveFiles.has(fileName) || (wanted && (alphaOnly || suffixed || !wanted.has(n)))) continue
 
-		const scraped = await buildFromTcgdex({ setId, localId, n, alphaOnly, structuralId: localId, printedNumber: /^[A-Za-z]/.test(localId) ? localId : null }, log)
+		const scraped = await buildFromTcgdex({ setId, localId, n, alphaOnly: alphaOnly || own, structuralId: localId, printedNumber: /^[A-Za-z]/.test(localId) ? localId : null }, log)
 		if (!scraped) { notOnTcgdex.push(n); continue }
 		await writeFile(join(dir, `${fileName}.json`), JSON.stringify(scraped, null, 2))
 		written.push(n)

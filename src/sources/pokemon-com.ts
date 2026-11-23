@@ -360,6 +360,15 @@ export async function scrapeSet(slug: string, opts: { serie: string; setId: stri
 		} catch (err) {
 			console.warn(`[pokemon.com] could not fill the missing cards from TCGdex: ${(err as Error).message}`)
 		}
+		// everything else TCGdex lists that pokemon.com doesn't have: lettered variants of a number ("75a"), and secret rares past
+		// the point where pokemon.com's pages run out. Cards already scraped are left alone.
+		try {
+			const { fillFromTcgdex } = await import('./tcgdex-fallback.ts')
+			const r = await fillFromTcgdex(opts.setId, { lettered: regSet?.letteredIds })
+			if (r.written.length) console.log(`[pokemon.com] ${r.written.length} more cards pokemon.com doesn't have were added from TCGdex`)
+		} catch (err) {
+			console.warn(`[pokemon.com] could not add the extra cards from TCGdex: ${(err as Error).message}`)
+		}
 	}
 
     // the Pokédex numbers come from PokeAPI; if it can't be reached the scrape is still good and the enrich below goes on

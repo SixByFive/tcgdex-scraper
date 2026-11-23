@@ -31,8 +31,11 @@ export const idOf = (v: Pick<VariantOut, 'type' | 'foil' | 'size' | 'stamps'>) =
  * by stamp (pre-release, staff, ...) are separate products of the same number, so they become variants of the one card.
  * A variant whose finish, foil or stamp isn't in the schema is left out and reported, not approximated.
  */
+/** A product's collector key. TCGplayer numbers some kit products wrongly ("Lightning Energy (#3)" is "2/30"); the "(#N)" in the name is right. */
+export const productNumberKey = (p: { name: string; number?: string | null }): string | undefined => collectorKey(p.name.match(/\(#(\d+)\b/)?.[1] ?? p.number)
+
 /** A card's name as a lookup key: no tags in brackets, no punctuation ("Genesect-EX" and "Genesect EX (Team Plasma)" agree). */
-export const nameKey = (s: string): string => s.replace(/\s+-\s+[A-Za-z]*\d+(?:\/\d+)?/g, ' ').replace(/\([^)]*\)|\[[^\]]*\]/g, ' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/ lv \d+$/, '').trim()
+export const nameKey = (s: string): string => s.replace(/\s+-\s+[A-Za-z]*\d+[A-Za-z]?(?:\/\d+)?/g, ' ').replace(/\([^)]*\)|\[[^\]]*\]/g, ' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/ lv \d+$/, '').trim()
 
 /**
  * `keyOf` says how products are keyed; by default their collector number. A reprint set's products carry the printed numbers of
@@ -50,24 +53,27 @@ export async function buildVariants(groupId: number, schema: SchemaModule, warn:
 	// Some products share a collector number with a card without being it: TCGplayer numbers its Basic Energy products "1", "2", ...,
 	// which is also the number of Joltik "001/064". When `cardNames` (collector key -> the names of the cards that have it) is given,
 	// a number that several products have keeps the ones named like the card, and only falls back to all of them when none is.
+	const numberOf = productNumberKey
+	// a group shared by two kits (`exclude` is set): a number with no product named like this kit's card is the other kit's card
+	const strict = Boolean(exclude)
 	const skip = new Set<number>()
 	if (cardNames && !keyOf) {
 		const byKey = new Map<string, typeof set.products>()
 		for (const product of set.products) {
-			const k = collectorKey(product.number)
+			const k = numberOf(product)
 			if (k !== undefined) byKey.set(k, [...(byKey.get(k) ?? []), product])
 		}
 		for (const [k, products] of byKey) {
 			const names = cardNames.get(k)
-			if (!names || products.length < 2) continue
+			if (!names || (products.length < 2 && !strict)) continue
 			const named = products.filter((p) => names.has(nameKey(p.name)))
-			if (named.length > 0 && named.length < products.length) for (const p of products) if (!named.includes(p)) skip.add(p.id)
+			if (strict ? named.length < products.length : named.length > 0 && named.length < products.length) for (const p of products) if (!named.includes(p)) skip.add(p.id)
 		}
 	}
 
 	for (const product of set.products) {
 		if (skip.has(product.id) || exclude?.(product)) continue
-		const n = keyOf ? keyOf(product) : collectorKey(product.number)
+		const n = keyOf ? keyOf(product) : numberOf(product)
 		if (n === undefined) continue
 		product.skus = skus?.[String(product.id)]
 		product.cardtrader ??= []
@@ -76,7 +82,9 @@ export async function buildVariants(groupId: number, schema: SchemaModule, warn:
 		for (const match of resolveProductVariants(product)) {
 			let { type, foil } = match.identity
 			const { size, stamp } = match.identity
-			const named = resolveFromText([product.name, product.clean_name])?.foil
+			// a card that is itself a ball ("Great Ball (#21)") is not a Great Ball pattern print: look for the pattern after its name
+			const noBallCard = (s: string | undefined) => s?.replace(/^(?:Pok[eé]|Great|Ultra|Master|Love|Friend|Quick|Dusk) Ball\b/i, '')
+			const named = resolveFromText([noBallCard(product.name), noBallCard(product.clean_name)].filter((s): s is string => Boolean(s)))?.foil
 			if (!foil && named && BALL_PATTERNS.has(named)) foil = named
 			if (foil && BALL_PATTERNS.has(foil)) type = 'reverse'
 			const label = `${product.name} (#${n}, ${match.key})`

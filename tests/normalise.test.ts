@@ -47,6 +47,7 @@ describe('GX cards: rarity and stage', () => {
 	test('pokemon.com\'s "Rare Holo GX" is an Ultra Rare', () => {
 		expect(mapRarity('Rare Holo GX', schema)).toEqual({ rarity: 'Ultra Rare' })
 		expect(mapRarity('Rare Holo EX', schema)).toEqual({ rarity: 'Ultra Rare' })
+		expect(mapRarity('Rare BREAK', schema)).toEqual({ rarity: 'Ultra Rare' })
 		expect(mapRarity('Rare Holo VMAX', schema)).toEqual({ rarity: 'Holo Rare VMAX' })
 		expect(mapRarity('Rare Holo', schema)).toEqual({ rarity: 'Rare Holo' })
 		expect(mapRarity('Rare Holo Mystery', schema)).toEqual({ warning: 'unmapped rarity "Rare Holo Mystery"' })

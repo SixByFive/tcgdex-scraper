@@ -11,6 +11,7 @@ describe('sameCardName: the same card', () => {
 		['Professor’s Research (Professor Rowan)', 'Professor’s Research'],
 		['Claydol', 'Claydol LV. 45'],
 		['Umbreon ☆', 'Umbreon'],
+		['Pokégear3.0', 'Pokégear 3.0'], // pokemon.com prints no space before the number
 		['Luxray GL LV.X', 'Luxray  LV. X'],
 		['Garchomp C LV.X', 'Garchomp  LV. X'],
 		['Pikachu V-UNION', 'Pikachu V-UNION Top Left'],

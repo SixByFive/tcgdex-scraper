@@ -28,7 +28,7 @@ const scrapeNotOnPokemonCom = async (setId: string, opts: { only?: string; tcgpl
 	const set = (await loadRegistry()).sets.find((s) => s.id === setId)
 	if (opts.only || !set) {
 		const { fillFromTcgdex } = await import('./sources/tcgdex-fallback.ts')
-		await fillFromTcgdex(setId, { only: opts.only ? String(opts.only).split(',').map(Number) : undefined })
+		await fillFromTcgdex(setId, { only: opts.only ? String(opts.only).split(',').map(Number) : undefined, lettered: (await loadRegistry()).sets.find((s) => s.id === setId)?.letteredIds })
 	} else await (await import('./sources/tcgcsv-cards.ts')).fillRegistrySet(set)
 	if (opts.enrich !== false) {
 		const { enrichScrapedSet } = await import('./sources/enrich-scraped.ts')

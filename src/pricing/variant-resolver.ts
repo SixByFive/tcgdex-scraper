@@ -429,6 +429,17 @@ function resolveStamps(text: string): string[] {
 		['worlds-2023', ['worlds 2023', 'world championships 2023', 'world championship 2023']],
 		['worlds-2024', ['worlds 2024', 'world championships 2024', 'world championship 2024']],
 		['worlds-2025', ['worlds 2025', 'world championships 2025', 'world championship 2025']],
+		// Worlds prizes of the 2000s: TCGplayer names them "(Worlds 10) [Top 32]"; a plain "[Participation]" card has the year alone
+		['worlds-2004', ['worlds 04', 'worlds 2004']],
+		['worlds-2005', ['worlds 05', 'worlds 2005']],
+		['worlds-2007', ['worlds 07', 'worlds 2007']],
+		['worlds-2008', ['worlds 08', 'worlds 2008']],
+		['worlds-2009', ['worlds 09', 'worlds 2009']],
+		['worlds-2010', ['worlds 10', 'worlds 2010']],
+		['top-sixteen', ['top 16', 'top sixteen']],
+		['top-thirty-two', ['top 32', 'top thirty two']],
+		['quarter-finalist', ['quarter finalist', 'quarterfinalist']],
+		['semi-finalist', ['semi finalist', 'semifinalist']],
 		['top-eight', ['top 8', 'top eight']],
 		['1st-place', ['1st place', 'first place']],
 		['2nd-place', ['2nd place', 'second place']],
@@ -462,6 +473,9 @@ function resolveStamps(text: string): string[] {
 			stamps.push(stamp)
 		}
 	}
+
+	// "[Finalist]" alone is the runner-up; "quarter-finalist" and "semi-finalist" contain the word but are placed above
+	if (/(?<!quarter[ -]?)(?<!semi[ -]?)\bfinalist\b/.test(text) && !stamps.includes('quarter-finalist') && !stamps.includes('semi-finalist')) stamps.push('finalist')
 
 	// TCGplayer names a set's prerelease/event stamp "(<Set> Stamped)", e.g. "(Pitch Black Stamped)": the set-logo stamp.
 	// "Pokemon Horizons Stamped" is its own stamp (above), and "(#1 Cinderace Stamped)" is a different kind of mark.

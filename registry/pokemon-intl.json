@@ -1039,7 +1039,11 @@
    "total": 117,
    "slug": "g1",
    "tcgplayerGroup": 1728,
-   "notes": []
+   "notes": [],
+   "letteredIds": true,
+   "extraTcgplayerGroups": [
+    1729
+   ]
   },
   {
    "id": "xy9",
@@ -1243,11 +1247,10 @@
    "releaseDate": "2014-02-05",
    "official": 6,
    "total": 6,
-   "slug": "xya",
-   "tcgplayerGroup": null,
-   "notes": [
-    "pokemon.com: several expansions named like this (sma, xya): set it in overrides"
-   ]
+   "slug": null,
+   "tcgplayerGroup": 1938,
+   "notes": [],
+   "source": "tcgdex"
   },
   {
    "id": "xy1",
@@ -1494,7 +1497,8 @@
    "total": 106,
    "slug": "col1",
    "tcgplayerGroup": 1415,
-   "notes": []
+   "notes": [],
+   "letteredIds": true
   },
   {
    "id": "hgss4",
@@ -1562,7 +1566,9 @@
    "total": 25,
    "slug": "hsp",
    "tcgplayerGroup": 1453,
-   "notes": []
+   "notes": [],
+   "source": "tcgdex",
+   "letteredIds": true
   },
   {
    "id": "hgss1",
@@ -1583,7 +1589,7 @@
    "official": 16,
    "total": 16,
    "slug": null,
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1433,
    "notes": [],
    "source": "tcgdex"
   },
@@ -2086,7 +2092,7 @@
    "official": 40,
    "total": 40,
    "slug": null,
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1423,
    "notes": [],
    "source": "tcgdex"
   },
@@ -2122,6 +2128,7 @@
    "slug": null,
    "tcgplayerGroup": 1372,
    "notes": [],
+   "letteredIds": true,
    "source": "tcgdex"
   },
   {
@@ -2134,6 +2141,7 @@
    "slug": null,
    "tcgplayerGroup": 1397,
    "notes": [],
+   "letteredIds": true,
    "source": "tcgdex"
   },
   {
@@ -2156,7 +2164,7 @@
    "official": 165,
    "total": 165,
    "slug": null,
-   "tcgplayerGroup": null,
+   "tcgplayerGroup": 1375,
    "notes": [],
    "source": "tcgdex"
   },

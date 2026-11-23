@@ -32,6 +32,10 @@ export function mergeTcgdexVariants(existing: VariantOut[] | undefined, fromTcgd
 		if (v.size && v.size !== 'jumbo') { warn(`${label}: TCGdex variant skipped, unknown size "${v.size}" (${name})`); continue }
 
 		const have = list.find((x) => idOf(x) === idOf(v))
+		// TCGdex's only variant for a card is a plain "normal" with no ids (its generated default), while TCGplayer sells the card
+		// as holo only: the default is a placeholder, not a printing
+		if (!have && fromTcgdex.length === 1 && v.type === 'normal' && !v.foil && !v.size && !v.stamps?.length && !td.tcgplayer && !td.cardmarket && !td.cardtrader
+			&& list.length > 0 && list.every((x) => x.type === 'holo')) continue
 		if (have) {
 			have.prices.cardmarket ??= td.cardmarket
 			have.prices.tcgplayer ??= td.tcgplayer
