@@ -1295,6 +1295,7 @@
    "total": 140,
    "slug": "bw11",
    "tcgplayerGroup": 1409,
+   "letteredIds": true,
    "notes": []
   },
   {
@@ -1602,6 +1603,7 @@
    "total": 111,
    "slug": "pl4",
    "tcgplayerGroup": 1391,
+   "letteredIds": true,
    "notes": []
   },
   {
@@ -1613,6 +1615,7 @@
    "total": 153,
    "slug": "pl3",
    "tcgplayerGroup": 1384,
+   "letteredIds": true,
    "notes": []
   },
   {
@@ -1624,6 +1627,7 @@
    "total": 120,
    "slug": "pl2",
    "tcgplayerGroup": 1367,
+   "letteredIds": true,
    "notes": []
   },
   {
@@ -1647,6 +1651,7 @@
    "total": 133,
    "slug": "pl1",
    "tcgplayerGroup": 1406,
+   "letteredIds": true,
    "notes": []
   },
   {
@@ -1658,6 +1663,7 @@
    "total": 106,
    "slug": "dp7",
    "tcgplayerGroup": 1369,
+   "letteredIds": true,
    "notes": []
   },
   {
@@ -1784,6 +1790,7 @@
    "total": 56,
    "slug": null,
    "tcgplayerGroup": 1421,
+   "letteredIds": true,
    "notes": [],
    "source": "tcgdex"
   },

@@ -25,6 +25,8 @@ if (cached) {
 	}
 }
 const get = (set: string, localId: string) => all.find((c) => c.set === set && c.localId === localId)
+// Legendary Treasures' RC cards are the Radiant Collection set's cards, so the Experimental repo keeps them idless (reprints.ts links them)
+const shared = (c: { set: string; localId: string }) => c.set === 'bw11' && /^RC/.test(c.localId)
 const t = cached ? test : test.skip
 const has = (set: string) => all.some((c) => c.set === set)
 const tIf = (set: string) => (has(set) ? test : test.skip)
@@ -34,6 +36,7 @@ describe('provider ids belong to one card', () => {
 		const owner = { tcgplayer: new Map<number, string>(), cardmarket: new Map<number, string>(), cardtrader: new Map<number, string>() }
 		const dups: string[] = []
 		for (const c of all) for (const v of c.variants) for (const k of ['tcgplayer', 'cardmarket', 'cardtrader'] as const) {
+			if (shared(c)) continue
 			const id = v.prices[k]
 			if (!id) continue
 			const who = `${c.set}-${c.localId}`
@@ -51,6 +54,7 @@ describe('provider ids belong to one card', () => {
 		const lost: string[] = []
 		for (const c of all) {
 			if (fixed.has(`${c.set}-${c.localId.replace(/^0+/, '')}`)) continue
+			if (shared(c)) continue
 			for (const x of c.tcgdexVariants) {
 				const mine = c.variants.find((v) => sig(v) === sig(x))
 				if (!mine) continue

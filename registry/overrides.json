@@ -198,6 +198,24 @@
 		"letteredIds": true,
 		"extraTcgplayerGroups": [1729]
 	},
+	"bw11": {
+		"letteredIds": true
+	},
+	"pl4": {
+		"letteredIds": true
+	},
+	"pl3": {
+		"letteredIds": true
+	},
+	"pl2": {
+		"letteredIds": true
+	},
+	"pl1": {
+		"letteredIds": true
+	},
+	"dp7": {
+		"letteredIds": true
+	},
 	"rc": {
 		"tcgplayerGroup": 1465,
 		"source": "tcgcsv"

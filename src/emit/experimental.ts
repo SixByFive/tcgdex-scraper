@@ -8,13 +8,13 @@ import type { ScrapedCard } from '../types/scraped.ts'
 import { cardKey, cardLocalId, damageValue, mapRarity, normaliseKind, perLang, tcgdexLocalId, toStage, typeList, typeValues } from './normalise.ts'
 import { buildVariants, sortVariants } from './variants.ts'
 import { fetchCardExtras } from '../sources/tcgdex-cards.ts'
-import { sameCardName } from './names.ts'
+import { sameCardAtNumber } from './names.ts'
 import { evolvedStage } from './evolution.ts'
 import { defaultRepo, listSets, loadFormat, loadPriceProviders, loadSchema, today } from '../util/experimental.ts'
 
 // curly and straight apostrophes/quotes and case differ between sources for the same card
 const plain = (s: string) => s.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/-/g, ' ').replace(/ +/g, ' ').toLowerCase().trim()
-const sameName = (a: string, b: string) => sameCardName(a, b)
+const sameName = (a: string, b: string) => sameCardAtNumber(a, b)
 
 export interface ExperimentalEmitOptions {
 	/** the set id, e.g. "me06": names the scrape folder and the set file made by `set-meta` */

@@ -13,7 +13,7 @@ import { mergeTcgdexVariants, type ProductIds } from '../emit/tcgdex-variants.ts
 import { applyJumbo, applyPrizePack, loadJumboIndex, loadPrizePackIndex, prizeProductOwner } from './tcgcsv.ts'
 
 // curly and straight apostrophes/quotes and case differ between sources for the same card
-import { sameCardName } from '../emit/names.ts'
+import { sameCardName, sameCardAtNumber } from '../emit/names.ts'
 const plain = (s: string) => s.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/-/g, ' ').replace(/ +/g, ' ').toLowerCase().trim()
 
 export interface EnrichScrapedOptions {
@@ -117,7 +117,10 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<Enri
 				if (!names) continue
 				checked++
 				// ("Basic Fire Energy" and "Fire Energy" are the same card: Mega Evolution Energy's products say Basic, TCGdex doesn't)
-					if (!names.some((n) => sameCardName(n, card.locales.en?.name ?? ''))) disagree++
+					// (a LV.X is "Dialga" at TCGdex and "Dialga LV.X" at TCGplayer, same number: the same card)
+					const own = card.locales.en?.name ?? ''
+					const noLvX = (s: string) => s.replace(/\s+lv\.?\s*x$/i, '')
+					if (!names.some((n) => sameCardName(n, own) || sameCardName(noLvX(n), noLvX(own)))) disagree++
 			}
 			if (checked && disagree / checked > 0.2) {
 				warn(`${disagree} of ${checked} product numbers belong to a different card (a reprint set?): matching variants by card name instead`)
@@ -201,7 +204,7 @@ export async function enrichScrapedSet(opts: EnrichScrapedOptions): Promise<Enri
 		if (variants) card.tcgplayerSet = extraKeyGroup.get(matchByName ? '' : cardKey(card) ?? '') ?? groupId
 		// variants TCGdex lists that TCGTracking has no product for (stamps, cosmos/gold patterns, jumbo), only for the same card
 		const enName = card.locales.en?.name
-		const sameCard = e && (!e.name || (enName && sameCardName(e.name, enName)))
+		const sameCard = e && (!e.name || (enName && sameCardAtNumber(e.name, enName)))
 		if (e && sameCard && e.variants?.length && !opts.noTcgdexVariants) {
 			// cross-check against TCGTracking: a TCGdex variant whose TCGplayer product is named like ANOTHER card of this set carries
 			// that card's ids by mistake (TCGdex gave My First Battle's Charmander the Bulbasaur product). The variant stays, its ids go.

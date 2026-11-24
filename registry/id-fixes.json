@@ -177,5 +177,35 @@
 		"provider": "cardmarket",
 		"id": 483869,
 		"why": "483864 (TCGTracking's) is not in Cardmarket's catalogue; 483869 (TCGdex's) is a Pokemon Breeder's Nurturing of Darkness Ablaze (exp 3199)"
+	},
+	{
+		"set": "pl3",
+		"card": "SH7",
+		"variant": {
+			"type": "reverse"
+		},
+		"provider": "cardmarket",
+		"id": 278689,
+		"why": "TCGdex rotates the three Supreme Victors SH cards' Cardmarket ids (SH7 gets Yanma's). Cardmarket's catalogue: 278689 is Milotic Lv. in the expansion, in the order Milotic, Relicanth, Yanma"
+	},
+	{
+		"set": "pl3",
+		"card": "SH8",
+		"variant": {
+			"type": "reverse"
+		},
+		"provider": "cardmarket",
+		"id": 278690,
+		"why": "TCGdex rotates the three Supreme Victors SH cards' Cardmarket ids (SH7 gets Yanma's). Cardmarket's catalogue: 278690 is Relicanth Lv. in the expansion, in the order Milotic, Relicanth, Yanma"
+	},
+	{
+		"set": "pl3",
+		"card": "SH9",
+		"variant": {
+			"type": "reverse"
+		},
+		"provider": "cardmarket",
+		"id": 278691,
+		"why": "TCGdex rotates the three Supreme Victors SH cards' Cardmarket ids (SH7 gets Yanma's). Cardmarket's catalogue: 278691 is Yanma Lv. in the expansion, in the order Milotic, Relicanth, Yanma"
 	}
 ]
