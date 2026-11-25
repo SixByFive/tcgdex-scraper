@@ -6,9 +6,9 @@
 const plain = (s: unknown) => String(s ?? '').replace(/[​-‍﻿­]/g, '').replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/-/g, ' ').replace(/\s+/g, ' ').toLowerCase().trim()
 
 export const looseName = (s: unknown): string =>
-	plain(s).replace(/\s*\([^)]*\)\s*/g, ' ').replace(/^basic /, '').replace(/\s+lv\.?\s*\d+$/, '')
+	plain(s).replace(/'s(?=\s|$)/g, '').replace(/\s*[(\[][^)\]]*[)\]]\s*/g, ' ').replace(/^basic /, '').replace(/\s+lv\.?\s*\d+$/, '')
 		// "Luxray GL LV.X": pokemon.com prints the GL / C symbol as an image and spaces "LV. X" differently; "Umbreon ☆" is "Umbreon" there
-		.replace(/\s+(?:[a-z0-9]{1,2}\s+)?lv\.?\s*x$/, ' lv x').replace(/\s*[☆★◇◆]$/, '')
+		.replace(/\s+(?:[a-z0-9]{1,2}\s+)?lv\.?\s*x$/, ' lv x').replace(/\s*[☆★◇◆]\s*/g, ' ').trimEnd().replace(/\s+(?:star|δ)$/, '')
 		// a Platinum Pokémon SP's "G" (Galactic) is an image on pokemon.com ("Zapdos  LV. 60") and a letter at TCGdex ("Zapdos G"; also GL, C, FB, E4, 4)
 		.replace(/\s+(?:g|gl|c|fb|e4|4)$/, '')
 		// a V-UNION is four cards: pokemon.com names each by its position ("Pikachu V-UNION Top Left"), TCGdex doesn't

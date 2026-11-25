@@ -112,7 +112,8 @@ export async function fillFromTcgdex(setId: string, opts: { only?: number[]; let
 		const lettered = localId.match(/^[A-Za-z]+(\d+)$/)
 		// An id of only letters ("Museum", the 30th Celebration's "B", "G", "R") can't be mistaken for another card and has no
 		// number: it is stored under its name, and only a full fill (no `only`) writes it.
-		const alphaOnly = /^[A-Za-z]+$/.test(localId)
+		// (the Unown Collection's "!" and "?": TCGdex lists the second URL-encoded, "%3F", which is also a file name Windows accepts)
+		const alphaOnly = /^(?:[A-Za-z]+|!|%3F)$/.test(localId)
 		// a number with a letter after it ("24a", the alternate art of card 24) is its own card: stored as "024a"
 		const suffixed = localId.match(/^(\d+)([A-Za-z])$/)
 		if (!/^\d+$/.test(localId) && !(lettered && (wanted || opts.lettered)) && !alphaOnly && !suffixed) { skipped.push(localId); continue }

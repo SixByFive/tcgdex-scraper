@@ -27,6 +27,7 @@ import { buildSetMeta } from '../sources/set-meta.ts'
 import { emitExperimental } from '../emit/experimental.ts'
 import { defaultRepo, intlDir, listSets as listExperimentalSets } from '../util/experimental.ts'
 import { buildCatalog, registrySet } from './catalog.ts'
+import { handleAsia } from './asia.ts'
 import { applyFixes, buildSet, galleryCount, loadFixes, registrySets, sameFix, saveFixes, writeSet, type ProductFix } from '../sources/sealed-set.ts'
 import { fileSafe } from '../util/experimental.ts'
 
@@ -306,6 +307,8 @@ export async function startUi(port = 5173): Promise<void> {
 			}
 			return
 		}
+
+		if (await handleAsia(req, res, url, await currentRepo())) return
 
 		if (path === '/api/sets') return jsonRes(res, await listSets())
 		if (path === '/api/catalog') return jsonRes(res, await buildCatalog(await currentRepo()))

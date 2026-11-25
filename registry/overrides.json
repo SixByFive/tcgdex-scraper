@@ -290,7 +290,8 @@
 		"tcgplayerGroup": 1542
 	},
 	"exu": {
-		"source": "tcgdex"
+		"source": "tcgdex",
+		"tcgplayerGroup": 1398
 	},
 	"pop2": {
 		"source": "tcgdex"

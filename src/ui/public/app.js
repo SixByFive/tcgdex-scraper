@@ -3,6 +3,8 @@ const modalRoot = document.getElementById('modal-root')
 const topbarStatus = document.getElementById('topbar-status')
 import { renderCatalog as drawCatalog } from './catalog.js'
 import { renderProducts as drawProducts } from './products.js'
+import { renderAsiaOverview, renderAsiaSource, renderAsiaSet } from './asia.js'
+import { loadSidebar, drawSidebar, gameIds, getGames, LANG_NAMES } from './sidebar.js'
 
 let currentEs = null
 let currentCards = []  // cache for modal lookup
@@ -25,9 +27,24 @@ function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;
 
 function route() {
 	closeModal()
+	drawSidebar()
 	const hash = window.location.hash.slice(1) || '/'
 	const parts = hash.split('/').filter(Boolean).map(decodeURIComponent)
-	if (parts.length === 0) return renderSetsIndex()
+	// the front page is the first game's first region
+	if (parts.length === 0) { window.location.replace('#/' + (gameIds()[0] ?? 'pokemon') + '/intl'); return }
+	if (gameIds().includes(parts[0])) {
+		const [game, dataset, source, code] = parts
+		if (!dataset) { window.location.replace('#/' + game + '/' + (getGames().find((g) => g.id === game)?.datasets[0].id ?? 'intl')); return }
+		if (game === 'pokemon' && dataset === 'asia') {
+			const tools = { closeStream, setTopbarStatus }
+			if (parts.length === 2) return renderAsiaOverview(app, tools)
+			if (parts.length === 3) return renderAsiaSource(app, source, tools)
+			if (parts.length === 4) return renderAsiaSet(app, source, code, tools)
+		}
+		if (parts.length === 2) return renderSetsIndex(game, dataset)
+		app.innerHTML = `<div class="page"><div class="empty">Not found</div></div>`
+		return
+	}
 	if (parts[0] === 'catalog') return drawCatalog(app, { closeStream, setTopbarStatus })
 	if (parts[0] === 'products') return drawProducts(app, parts[1] ?? '', { closeStream, setTopbarStatus })
 	if (parts[0] === 'experimental') return renderExperimental(parts[1] ?? '')
@@ -43,16 +60,24 @@ function route() {
 	app.innerHTML = `<div class="page"><div class="empty">Not found</div></div>`
 }
 window.addEventListener('hashchange', route)
-window.addEventListener('DOMContentLoaded', route)
+// the sidebar loads the games first, so the first page already knows which ones exist
+window.addEventListener('DOMContentLoaded', () => loadSidebar().then(route))
 
 function closeStream() { if (currentEs) { currentEs.close(); currentEs = null } }
 function setTopbarStatus(html) { topbarStatus.innerHTML = html }
 
-async function renderSetsIndex() {
+async function renderSetsIndex(game, dataset) {
 	closeStream()
 	setTopbarStatus('')
+	const g = getGames().find((x) => x.id === game)
+	const langs = (g?.datasets.find((d) => d.id === dataset)?.languages ?? []).map((l) => LANG_NAMES[l] ?? l).join(' · ')
+	if (game !== 'pokemon') {
+		app.innerHTML = `<div class="page"><div class="page-head"><div><h1 class="page-title">${esc(g?.name ?? game)}</h1><div class="page-sub">${esc(langs)}</div></div></div>
+			<div class="empty">There is no scraper for this game yet. Browse what the repo holds in <a href="#/experimental">Experimental</a>.</div></div>`
+		return
+	}
 	app.innerHTML = `<div class="page">
-		<div class="page-head"><div><h1 class="page-title">Sets</h1><div class="page-sub">Scraped and existing sets</div></div></div>
+		<div class="page-head"><div><h1 class="page-title">International</h1><div class="page-sub">pokemon.com · ${esc(langs)}</div></div></div>
 		<div class="section-label">Scraped</div>
 		<div id="scraped-sets" class="empty">Loading…</div>
 		<div class="section-label" style="margin-top: 32px;">Experimental repo</div>

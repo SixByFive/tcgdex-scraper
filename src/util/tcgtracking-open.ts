@@ -2,6 +2,10 @@ import type { TCGTrackingProduct, TCGTrackingSkuEntry } from '../pricing/types.t
 
 const BASE = 'https://openapi.tcgtracking.com/v1'
 export const POKEMON_CATEGORY = 3
+export const POKEMON_JAPAN_CATEGORY = 85
+/** The category the functions below ask about: Pokémon (3), unless a caller switches it to Pokémon Japan (85) for a while. */
+let category = POKEMON_CATEGORY
+export const setCategory = (id: number): void => { category = id }
 
 async function getJson<T>(url: string, allow404 = false): Promise<T | null> {
 	// connect timeouts (undici's 10 s) come and go; a network error or a 5xx is tried again, a 4xx is not
@@ -23,7 +27,7 @@ async function getJson<T>(url: string, allow404 = false): Promise<T | null> {
 export interface TrackedSetSummary { id: number; name: string; abbreviation: string | null; published_on: string | null; product_count: number }
 
 export async function listPokemonSets(): Promise<TrackedSetSummary[]> {
-	const data = await getJson<{ sets: TrackedSetSummary[] }>(`${BASE}/${POKEMON_CATEGORY}/sets`)
+	const data = await getJson<{ sets: TrackedSetSummary[] }>(`${BASE}/${category}/sets`)
 	return (data?.sets ?? []).filter((s) => !s.name.startsWith('[Inactive]'))
 }
 
@@ -37,26 +41,26 @@ export interface TrackedSet {
 
 /** Singles and sealed products of a set, with the Cardmarket and CardTrader ids TCGTracking has matched. */
 export async function fetchCards(groupId: number): Promise<TrackedSet> {
-	const data = await getJson<TrackedSet>(`${BASE}/${POKEMON_CATEGORY}/sets/${groupId}/cards`)
+	const data = await getJson<TrackedSet>(`${BASE}/${category}/sets/${groupId}/cards`)
 	if (!data) throw new Error(`TCGTracking has no set ${groupId}`)
 	return data
 }
 
 /** Sealed products of a set (boxes, packs, blisters...), with the ids TCGTracking has matched. */
 export async function fetchSealed(groupId: number): Promise<TrackedSet> {
-	const data = await getJson<TrackedSet>(`${BASE}/${POKEMON_CATEGORY}/sets/${groupId}/sealed`)
+	const data = await getJson<TrackedSet>(`${BASE}/${category}/sets/${groupId}/sealed`)
 	if (!data) throw new Error(`TCGTracking has no set ${groupId}`)
 	return data
 }
 
 export async function fetchSetInfo(groupId: number): Promise<Omit<TrackedSet, 'products'> & { product_count: number }> {
-	const data = await getJson<any>(`${BASE}/${POKEMON_CATEGORY}/sets/${groupId}`)
+	const data = await getJson<any>(`${BASE}/${category}/sets/${groupId}`)
 	if (!data) throw new Error(`TCGTracking has no set ${groupId}`)
 	return data
 }
 
 /** product id -> sku id -> sku, the matrix that says which finishes exist. null when the set has none yet. */
 export async function fetchSkus(groupId: number): Promise<Record<string, Record<string, TCGTrackingSkuEntry>> | null> {
-	const data = await getJson<{ products: Record<string, Record<string, TCGTrackingSkuEntry>> }>(`${BASE}/${POKEMON_CATEGORY}/sets/${groupId}/skus`, true)
+	const data = await getJson<{ products: Record<string, Record<string, TCGTrackingSkuEntry>> }>(`${BASE}/${category}/sets/${groupId}/skus`, true)
 	return data?.products ?? null
 }

@@ -125,7 +125,7 @@ describe('Cardmarket ids are products of their own card', () => {
 	const file = join('var', 'cardmarket', 'products_singles_6.json')
 	const haveCatalogue = cached && existsSync(file)
 	// Cardmarket and TCGdex word these cards differently (base1-73: "Imposter" vs "Impostor"); the ids are right
-	const translated = new Set(['me06-90', 'me06-101', 'me06-126', 'base1-73'])
+	const translated = new Set(['me06-90', 'me06-101', 'me06-126', 'base1-73', 'ex6-98'])
 	;(haveCatalogue ? test : test.skip)('no cached Cardmarket id is in the catalogue under another name', () => {
 		const products = new Map<number, { idProduct: number; name: string; idExpansion: number }>(JSON.parse(readFileSync(file, 'utf8')).products.map((p: any) => [p.idProduct, p]))
 		const bad: string[] = []

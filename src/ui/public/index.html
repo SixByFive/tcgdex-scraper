@@ -9,18 +9,13 @@
 <body>
 	<div class="topbar">
 		<a class="brand" href="#/">tcgdex scraper</a>
-		<div class="tabs">
-			<a class="tab" aria-current="page" href="#/">
-				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-				Sets
-			</a>
-			<a class="tab" href="#/catalog">Catalog</a>
-			<a class="tab" href="#/products">Products</a>
-			<a class="tab" href="#/experimental">Experimental</a>
-		</div>
+		<div class="tabs"></div>
 		<div class="topbar-end" id="topbar-status"></div>
 	</div>
-	<main id="app"></main>
+	<div class="shell">
+		<nav class="sidebar" id="sidebar" aria-label="Games, regions and tools"></nav>
+		<main id="app"></main>
+	</div>
 	<div class="modal-root" id="modal-root" hidden></div>
 	<script type="module" src="/app.js"></script>
 </body>

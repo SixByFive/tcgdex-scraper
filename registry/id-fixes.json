@@ -207,5 +207,258 @@
 		"provider": "cardmarket",
 		"id": 278691,
 		"why": "TCGdex rotates the three Supreme Victors SH cards' Cardmarket ids (SH7 gets Yanma's). Cardmarket's catalogue: 278691 is Yanma Lv. in the expansion, in the order Milotic, Relicanth, Yanma"
+	},
+	{
+		"set": "ex4",
+		"card": "079",
+		"variant": {
+			"type": "normal"
+		},
+		"provider": "cardmarket",
+		"id": 276056,
+		"why": "TCGdex gives Team Aqua's Technical Machine 01 the Cardmarket id of the card at the same number in Sandstorm (ex2). Cardmarket's catalogue: 276056 is Team Aqua Technical Machine 01 in the Team Magma vs Team Aqua expansion (1542); TCGplayer's own product (Team Aqua Technical Machine 01) agrees"
+	},
+	{
+		"set": "ex4",
+		"card": "079",
+		"variant": {
+			"type": "reverse"
+		},
+		"provider": "cardmarket",
+		"id": 276056,
+		"why": "TCGdex gives Team Aqua's Technical Machine 01 the Cardmarket id of the card at the same number in Sandstorm (ex2). Cardmarket's catalogue: 276056 is Team Aqua Technical Machine 01 in the Team Magma vs Team Aqua expansion (1542); TCGplayer's own product (Team Aqua Technical Machine 01) agrees"
+	},
+	{
+		"set": "ex4",
+		"card": "084",
+		"variant": {
+			"type": "normal"
+		},
+		"provider": "cardmarket",
+		"id": 276061,
+		"why": "TCGdex gives Team Magma's Technical Machine 01 the Cardmarket id of the card at the same number in Sandstorm (ex2). Cardmarket's catalogue: 276061 is Team Magma Technical Machine 01 in the Team Magma vs Team Aqua expansion (1542); TCGplayer's own product (Team Magma Technical Machine 01) agrees"
+	},
+	{
+		"set": "ex4",
+		"card": "084",
+		"variant": {
+			"type": "reverse"
+		},
+		"provider": "cardmarket",
+		"id": 276061,
+		"why": "TCGdex gives Team Magma's Technical Machine 01 the Cardmarket id of the card at the same number in Sandstorm (ex2). Cardmarket's catalogue: 276061 is Team Magma Technical Machine 01 in the Team Magma vs Team Aqua expansion (1542); TCGplayer's own product (Team Magma Technical Machine 01) agrees"
+	},
+	{
+		"set": "ex1",
+		"card": "031",
+		"variant": {
+			"type": "normal"
+		},
+		"provider": "cardmarket",
+		"id": 275679,
+		"why": "TCGdex gives Grovyle (Poison Breath | Swift) Cardmarket id 280577, which is not in Cardmarket's catalogue. Cardmarket's catalogue: 275679 is Grovyle [Poison Breath | Swift] in Ruby & Sapphire (exp 1539), next to Electrike's 275678 and the other Grovyle's 275680"
+	},
+	{
+		"set": "ex1",
+		"card": "031",
+		"variant": {
+			"type": "reverse"
+		},
+		"provider": "cardmarket",
+		"id": 275679,
+		"why": "TCGdex gives Grovyle (Poison Breath | Swift) Cardmarket id 280577, which is not in Cardmarket's catalogue. Cardmarket's catalogue: 275679 is Grovyle [Poison Breath | Swift] in Ruby & Sapphire (exp 1539), next to Electrike's 275678 and the other Grovyle's 275680"
+	},
+	{
+		"set": "exu",
+		"card": "H",
+		"variant": {
+			"type": "holo"
+		},
+		"provider": "cardmarket",
+		"id": 276632,
+		"why": "TCGdex's Cardmarket ids for the Unown Collection run out of step with the letters (from H on, each card has the next one's). Cardmarket's catalogue: 276632 is Unown [H] [Shuffle | Hidden Power] in the Unseen Forces Unown Collection expansion (1548)"
+	},
+	{
+		"set": "exu",
+		"card": "I",
+		"variant": {
+			"type": "holo"
+		},
+		"provider": "cardmarket",
+		"id": 276631,
+		"why": "TCGdex's Cardmarket ids for the Unown Collection run out of step with the letters (from H on, each card has the next one's). Cardmarket's catalogue: 276631 is Unown [I] [Shuffle | Hidden Power] in the Unseen Forces Unown Collection expansion (1548)"
+	},
+	{
+		"set": "exu",
+		"card": "K",
+		"variant": {
+			"type": "holo"
+		},
+		"provider": "cardmarket",
+		"id": 276621,
+		"why": "TCGdex's Cardmarket ids for the Unown Collection run out of step with the letters (from H on, each card has the next one's). Cardmarket's catalogue: 276621 is Unown [K] [Shuffle | Hidden Power] in the Unseen Forces Unown Collection expansion (1548)"
+	},
+	{
+		"set": "exu",
+		"card": "L",
+		"variant": {
+			"type": "holo"
+		},
+		"provider": "cardmarket",
+		"id": 276634,
+		"why": "TCGdex's Cardmarket ids for the Unown Collection run out of step with the letters (from H on, each card has the next one's). Cardmarket's catalogue: 276634 is Unown [L] [Shuffle | Hidden Power] in the Unseen Forces Unown Collection expansion (1548)"
+	},
+	{
+		"set": "exu",
+		"card": "M",
+		"variant": {
+			"type": "holo"
+		},
+		"provider": "cardmarket",
+		"id": 276622,
+		"why": "TCGdex's Cardmarket ids for the Unown Collection run out of step with the letters (from H on, each card has the next one's). Cardmarket's catalogue: 276622 is Unown [M] [Shuffle | Hidden Power] in the Unseen Forces Unown Collection expansion (1548)"
+	},
+	{
+		"set": "exu",
+		"card": "N",
+		"variant": {
+			"type": "holo"
+		},
+		"provider": "cardmarket",
+		"id": 276624,
+		"why": "TCGdex's Cardmarket ids for the Unown Collection run out of step with the letters (from H on, each card has the next one's). Cardmarket's catalogue: 276624 is Unown [N] [Shuffle | Hidden Power] in the Unseen Forces Unown Collection expansion (1548)"
+	},
+	{
+		"set": "exu",
+		"card": "O",
+		"variant": {
+			"type": "holo"
+		},
+		"provider": "cardmarket",
+		"id": 276623,
+		"why": "TCGdex's Cardmarket ids for the Unown Collection run out of step with the letters (from H on, each card has the next one's). Cardmarket's catalogue: 276623 is Unown [O] [Shuffle | Hidden Power] in the Unseen Forces Unown Collection expansion (1548)"
+	},
+	{
+		"set": "exu",
+		"card": "P",
+		"variant": {
+			"type": "holo"
+		},
+		"provider": "cardmarket",
+		"id": 276633,
+		"why": "TCGdex's Cardmarket ids for the Unown Collection run out of step with the letters (from H on, each card has the next one's). Cardmarket's catalogue: 276633 is Unown [P] [Shuffle | Hidden Power] in the Unseen Forces Unown Collection expansion (1548)"
+	},
+	{
+		"set": "exu",
+		"card": "Q",
+		"variant": {
+			"type": "holo"
+		},
+		"provider": "cardmarket",
+		"id": 276641,
+		"why": "TCGdex's Cardmarket ids for the Unown Collection run out of step with the letters (from H on, each card has the next one's). Cardmarket's catalogue: 276641 is Unown [Q] [Shuffle | Hidden Power] in the Unseen Forces Unown Collection expansion (1548)"
+	},
+	{
+		"set": "exu",
+		"card": "R",
+		"variant": {
+			"type": "holo"
+		},
+		"provider": "cardmarket",
+		"id": 276643,
+		"why": "TCGdex's Cardmarket ids for the Unown Collection run out of step with the letters (from H on, each card has the next one's). Cardmarket's catalogue: 276643 is Unown [R] [Shuffle | Hidden Power] in the Unseen Forces Unown Collection expansion (1548)"
+	},
+	{
+		"set": "exu",
+		"card": "S",
+		"variant": {
+			"type": "holo"
+		},
+		"provider": "cardmarket",
+		"id": 276644,
+		"why": "TCGdex's Cardmarket ids for the Unown Collection run out of step with the letters (from H on, each card has the next one's). Cardmarket's catalogue: 276644 is Unown [S] [Shuffle | Hidden Power] in the Unseen Forces Unown Collection expansion (1548)"
+	},
+	{
+		"set": "exu",
+		"card": "T",
+		"variant": {
+			"type": "holo"
+		},
+		"provider": "cardmarket",
+		"id": 276645,
+		"why": "TCGdex's Cardmarket ids for the Unown Collection run out of step with the letters (from H on, each card has the next one's). Cardmarket's catalogue: 276645 is Unown [T] [Shuffle | Hidden Power] in the Unseen Forces Unown Collection expansion (1548)"
+	},
+	{
+		"set": "exu",
+		"card": "U",
+		"variant": {
+			"type": "holo"
+		},
+		"provider": "cardmarket",
+		"id": 276642,
+		"why": "TCGdex's Cardmarket ids for the Unown Collection run out of step with the letters (from H on, each card has the next one's). Cardmarket's catalogue: 276642 is Unown [U] [Shuffle | Hidden Power] in the Unseen Forces Unown Collection expansion (1548)"
+	},
+	{
+		"set": "exu",
+		"card": "V",
+		"variant": {
+			"type": "holo"
+		},
+		"provider": "cardmarket",
+		"id": 276636,
+		"why": "TCGdex's Cardmarket ids for the Unown Collection run out of step with the letters (from H on, each card has the next one's). Cardmarket's catalogue: 276636 is Unown [V] [Shuffle | Hidden Power] in the Unseen Forces Unown Collection expansion (1548)"
+	},
+	{
+		"set": "exu",
+		"card": "W",
+		"variant": {
+			"type": "holo"
+		},
+		"provider": "cardmarket",
+		"id": 276635,
+		"why": "TCGdex's Cardmarket ids for the Unown Collection run out of step with the letters (from H on, each card has the next one's). Cardmarket's catalogue: 276635 is Unown [W] [Shuffle | Hidden Power] in the Unseen Forces Unown Collection expansion (1548)"
+	},
+	{
+		"set": "exu",
+		"card": "X",
+		"variant": {
+			"type": "holo"
+		},
+		"provider": "cardmarket",
+		"id": 276637,
+		"why": "TCGdex's Cardmarket ids for the Unown Collection run out of step with the letters (from H on, each card has the next one's). Cardmarket's catalogue: 276637 is Unown [X] [Shuffle | Hidden Power] in the Unseen Forces Unown Collection expansion (1548)"
+	},
+	{
+		"set": "exu",
+		"card": "Y",
+		"variant": {
+			"type": "holo"
+		},
+		"provider": "cardmarket",
+		"id": 276640,
+		"why": "TCGdex's Cardmarket ids for the Unown Collection run out of step with the letters (from H on, each card has the next one's). Cardmarket's catalogue: 276640 is Unown [Y] [Shuffle | Hidden Power] in the Unseen Forces Unown Collection expansion (1548)"
+	},
+	{
+		"set": "exu",
+		"card": "Z",
+		"variant": {
+			"type": "holo"
+		},
+		"provider": "cardmarket",
+		"id": 276639,
+		"why": "TCGdex's Cardmarket ids for the Unown Collection run out of step with the letters (from H on, each card has the next one's). Cardmarket's catalogue: 276639 is Unown [Z] [Shuffle | Hidden Power] in the Unseen Forces Unown Collection expansion (1548)"
+	},
+	{
+		"set": "ex7",
+		"card": "083",
+		"variant": {
+			"type": "normal",
+			"stamps": [
+				"jimmy-ballard"
+			]
+		},
+		"provider": "cardmarket",
+		"id": 276375,
+		"why": "TCGdex gives Copycat's Jimmy Ballard stamp the Cardmarket id 477604, which is its TCGplayer product (the Hiroki Yano stamp's) and not in Cardmarket's catalogue. Cardmarket has one Copycat product for every stamp, 276375, the id all of the card's other variants carry"
 	}
 ]

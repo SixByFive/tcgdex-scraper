@@ -15,6 +15,7 @@
     "set-meta": "bun run src/cli.ts set-meta",
     "emit-experimental": "bun run src/cli.ts emit-experimental",
     "emit": "bun run src/cli.ts emit",
+    "emit-asia": "bun run src/cli.ts asia emit",
     "images": "bun run src/cli.ts images",
     "test": "bun test tests"
   },

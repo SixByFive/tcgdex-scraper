@@ -269,6 +269,114 @@ gallery
 		process.exit(r.failed.length ? 1 : 0)
 	})
 
+const asia = program.command('asia').description('Asia: the portal (tw, hk, th, id), Japan (ja) and Mainland China (zh-cn)')
+const regionOf = (v: string) => {
+	if (!['tw', 'hk', 'th', 'id', 'ja', 'ko', 'zh-cn'].includes(v)) throw new Error(`unknown region "${v}" (tw, hk, th, id, ja, ko, zh-cn)`)
+	return v as import('./types/asia.ts').AsiaRegion
+}
+asia
+	.command('expansions <region>')
+	.description("List the region's products (code, title, release date) into cache/asia/<region>/expansions.json")
+	.option('--fresh', 'ask the portal again instead of using the cached pages', false)
+	.action(async (region, opts) => {
+		const m = await import('./sources/asia-sources.ts')
+		if (opts.fresh) (await import('./sources/asia-portal.ts')).setAsiaFresh(true)
+		const list = await m.listExpansions(regionOf(region))
+		for (const e of list) console.log(`${e.code.padEnd(10)}${(e.releaseDate ?? '—').padEnd(12)}${e.title}`)
+		console.log(`${list.length} products`)
+		process.exit(0)
+	})
+asia
+	.command('scrape <region> <codes...>')
+	.description('Scrape products by code: every card page, rarities, and the card images')
+	.option('--no-images', 'skip downloading the images')
+	.option('--no-rarities', 'skip the rarity lookup (one extra listing per rarity)')
+	.option('--fresh', 'ask the portal again instead of using the cached pages', false)
+	.action(async (region, codes: string[], opts) => {
+		const m = await import('./sources/asia-sources.ts')
+		if (opts.fresh) (await import('./sources/asia-portal.ts')).setAsiaFresh(true)
+		let bad = 0
+		for (const code of codes) {
+			const r = await m.scrapeExpansion(regionOf(region), code, { images: opts.images !== false, rarities: opts.rarities !== false })
+			console.log(`[asia] ${region}/${code}: ${r.cards} cards, ${r.images} images downloaded${r.failed.length ? `, ${r.failed.length} failed` : ''}`)
+			bad += r.failed.length
+		}
+		process.exit(bad ? 1 : 0)
+	})
+asia
+	.command('images <region> <codes...>')
+	.description('Download the images of products that are already scraped (files on disk are skipped)')
+	.action(async (region, codes: string[]) => {
+		const m = await import('./sources/asia-sources.ts')
+		let bad = 0
+		for (const code of codes) {
+			const r = await m.downloadImages(regionOf(region), code)
+			console.log(`[asia] ${region}/${code}: ${r.downloaded} downloaded, ${r.failed.length} failed`)
+			bad += r.failed.length
+		}
+		process.exit(bad ? 1 : 0)
+	})
+
+asia
+	.command('enrich <region> <codes...>')
+	.description('Add TCGdex data (regulation mark, rarity, text, finishes) and, for Japan, TCGTracking variants with provider ids to scraped cards')
+	.option('--repo <path>', 'Experimental repo path')
+	.option('--tcgplayer-set <id>', 'Japan: the Pokémon Japan TCGplayer group (found by set code when omitted)', (v) => Number(v))
+	.option('--no-variants', 'skip variants and provider ids')
+	.option('--no-tcgdex', 'skip the TCGdex lookup')
+	.option('--fresh', 'ask TCGdex again instead of using what is kept', false)
+	.action(async (region, codes: string[], opts) => {
+		const { enrichAsiaSet } = await import('./sources/enrich-asia.ts')
+		let bad = 0
+		for (const code of codes) bad += (await enrichAsiaSet({ region: regionOf(region), code, repo: opts.repo, tcgplayerSet: opts.tcgplayerSet, noVariants: opts.variants === false, noTcgdex: opts.tcgdex === false, fresh: Boolean(opts.fresh) })).problems.length
+		process.exit(bad ? 1 : 0)
+	})
+asia
+	.command('build <region> <codes...>')
+	.description('The whole flow for products: scrape -> enrich -> emit (like build-era for International). Dry run unless --apply; a source that failed stops the product being written unless --allow-incomplete')
+	.option('--repo <path>', 'Experimental repo path')
+	.option('--series <id>', 'series id, when the product heading is not a known one')
+	.option('--overwrite', 'replace card files that exist instead of adding the language to them', false)
+	.option('--images-out <dir>', 'also convert the images to webp into <dir>, laid out as on the CDN (needs --apply)')
+	.option('--refresh', 'scrape again even when the product is already scraped', false)
+	.option('--allow-incomplete', 'write a product even when an enrich source failed (it may lack variants or ids)', false)
+	.option('--apply', 'write the files (default is a dry run)', false)
+	.action(async (region, codes: string[], opts) => {
+		const { scrapeExpansion, downloadImages } = await import('./sources/asia-sources.ts')
+		const { readCards } = await import('./sources/asia-portal.ts')
+		const { enrichAsiaSet } = await import('./sources/enrich-asia.ts')
+		const { emitAsia } = await import('./emit/asia.ts')
+		const r = regionOf(region)
+		let failed = 0
+		for (const code of codes) {
+			console.log(`\n=== ${region}/${code} ===`)
+			try {
+				if (opts.refresh || !(await readCards(r, code)).length) {
+					const s = await scrapeExpansion(r, code, { images: true })
+					console.log(`[build] scraped ${s.cards} cards, ${s.images} images`)
+					if (s.failed.length) throw new Error(`${s.failed.length} card pages failed; run again to retry them`)
+				} else { await downloadImages(r, code); console.log('[build] already scraped (use --refresh to scrape again)') }
+				const e = await enrichAsiaSet({ region: r, code, repo: opts.repo })
+				if (e.problems.length && !opts.allowIncomplete) throw new Error(`not written, enrich found problems (--allow-incomplete writes it anyway):\n  - ${e.problems.join('\n  - ')}`)
+				await emitAsia({ region: r, code, repo: opts.repo, series: opts.series, overwrite: Boolean(opts.overwrite), imagesOut: opts.imagesOut, apply: Boolean(opts.apply) })
+			} catch (err) { failed++; console.error(`[build] ${region}/${code}: ${(err as Error).message}`) }
+		}
+		process.exit(failed ? 1 : 0)
+	})
+asia
+	.command('emit <region> <code>')
+	.description('Write a scraped Asia product as Experimental files (data/pokemon/asia/<Series>/<Set>/): series, set and cards. Dry run unless --apply')
+	.option('--repo <path>', 'Experimental repo path')
+	.option('--series <id>', 'series id, when the product heading is not a known one')
+	.option('--overwrite', 'replace card files that exist instead of adding the language to them', false)
+	.option('--images-out <dir>', 'also convert the images to webp into <dir>, laid out as on the CDN (needs --apply)')
+	.option('--apply', 'write the files (default is a dry run)', false)
+	.action(async (region, code, opts) => {
+		const { emitAsia } = await import('./emit/asia.ts')
+		await emitAsia({ region: regionOf(region), code, repo: opts.repo, series: opts.series, overwrite: Boolean(opts.overwrite), imagesOut: opts.imagesOut, apply: Boolean(opts.apply) })
+		process.exit(0)
+	})
+
 program
 	.command('reorder-variants')
 	.description('Put the ball-pattern variants (Poke Ball before Master Ball) of already-written card files in order; changes nothing else')
